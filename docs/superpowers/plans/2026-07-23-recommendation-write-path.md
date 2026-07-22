@@ -273,7 +273,7 @@ service cloud.firestore {
     }
 
     match /{document=**} {
-      allow read: if request.auth != null;
+      allow read: if false;
       allow write: if false;
     }
   }
@@ -281,6 +281,8 @@ service cloud.firestore {
 ```
 
 Every collection Cloud Functions write to is explicitly `allow write: if false` for clients — the Admin SDK (which every function in this plan uses) bypasses rules entirely, so this correctly locks out direct client writes while Functions keep working. Visitors (no `request.auth`) can read `restaurants`, `dishes`, and `recommendations` — matches the locked Visitor role (§7: "Browse, search, view everything"). `saves` are private to their owner (doc ID is `{uid}_{recId}`, so the match pattern only allows a signed-in user to read their own).
+
+**Correction (found in Task 2's review, fixed before Task 3 began):** the catch-all originally read `allow read: if request.auth != null;`. Firestore ORs every matching rule block for a path rather than letting a more specific block shadow a broader one — that catch-all was granting any signed-in user read access to `/saves/{anything}`, defeating the ownership check right above it. Fixed to deny-by-default (`allow read: if false;`). The named, explicit-read collections (`restaurants`/`dishes`/`recommendations`/`votes`) are unaffected — they already grant read via their own specific blocks, not via the catch-all.
 
 - [ ] **Step 3: Verify with a manual local check (no emulator available)**
 
