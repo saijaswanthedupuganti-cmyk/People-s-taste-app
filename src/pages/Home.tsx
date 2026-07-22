@@ -1,34 +1,46 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AreaMealHeader from "../components/AreaMealHeader";
+import LocationSheet from "../components/LocationSheet";
 import FilterChips from "../components/FilterChips";
 import RecommendationCard from "../components/RecommendationCard";
 import { MOCK_FEED } from "../data/mockData";
 import { currentMealWindow } from "../lib/mealWindow";
+import { requestLocation } from "../lib/geo";
 import { SIGNAL_LABEL } from "../types";
 import type { MealTag, SignalTag } from "../types";
 
-const AREAS = ["Jubilee Hills", "Banjara Hills", "Madhapur", "Ameerpet", "Tolichowki", "Charminar"];
+const DEFAULT_AREA = "Jubilee Hills";
 const MEALS: MealTag[] = ["breakfast", "lunch", "dinner", "late_night"];
-
 const SIGNAL_FILTERS: SignalTag[] = ["hidden_gem", "best_value", "worth_traveling_for", "would_return"];
+const ASKED_KEY = "pt_location_asked";
 
 export default function Home() {
-  const [area, setArea] = useState(AREAS[0]);
+  const [area, setArea] = useState(DEFAULT_AREA);
   const [meal, setMeal] = useState<MealTag>(currentMealWindow());
   const [activeSignals, setActiveSignals] = useState<Set<string>>(new Set());
+  const [sheetOpen, setSheetOpen] = useState(false);
 
-  function cycleArea() {
-    setArea((cur) => AREAS[(AREAS.indexOf(cur) + 1) % AREAS.length]);
-  }
-  function cycleMeal() {
-    setMeal((cur) => MEALS[(MEALS.indexOf(cur) + 1) % MEALS.length]);
-  }
+  // §11.3 (locked): GPS captured on app open. §E1 (locked): denied -> manual fallback,
+  // no nagging re-prompts. So we auto-ask exactly once, ever, per browser — after that,
+  // "Use current location" in the sheet is the only way it's asked again, and that's a
+  // user-initiated tap, not a re-prompt.
+  useEffect(() => {
+    if (localStorage.getItem(ASKED_KEY)) return;
+    localStorage.setItem(ASKED_KEY, "1");
+    requestLocation().then((result) => {
+      if (result.status === "granted") setArea(result.area);
+    });
+  }, []);
+
   function toggleSignal(id: string) {
     setActiveSignals((cur) => {
       const next = new Set(cur);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  }
+  function cycleMeal() {
+    setMeal((cur) => MEALS[(MEALS.indexOf(cur) + 1) % MEALS.length]);
   }
 
   const strictResults = useMemo(
@@ -53,7 +65,18 @@ export default function Home() {
 
   return (
     <div className="pb-24 md:pb-8">
-      <AreaMealHeader area={area} meal={meal} onChangeArea={cycleArea} onChangeMeal={cycleMeal} />
+      <AreaMealHeader area={area} meal={meal} onChangeArea={() => setSheetOpen(true)} onChangeMeal={cycleMeal} />
+
+      {sheetOpen && (
+        <LocationSheet
+          currentArea={area}
+          onClose={() => setSheetOpen(false)}
+          onSelect={(next) => {
+            setArea(next);
+            setSheetOpen(false);
+          }}
+        />
+      )}
 
       <div className="mx-auto max-w-2xl">
         <div className="pt-3">
