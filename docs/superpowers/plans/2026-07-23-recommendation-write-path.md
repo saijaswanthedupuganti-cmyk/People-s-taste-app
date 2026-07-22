@@ -969,6 +969,8 @@ export async function createRecommendationHandler(
 }
 ```
 
+**Correction (found in Task 4's review, fixed immediately after):** the code above never validates `communityPlace.location`'s shape. A missing/non-numeric `lat`/`lng` makes `haversineMeters` silently return `NaN`, every dedupe comparison (`NaN <= 150`) evaluates `false`, and the handler proceeds to persist a corrupt restaurant document instead of rejecting the request. Fixed by adding a guard right after the caption check, before the dedupe search: reject if `location` is missing or `lat`/`lng` aren't `Number.isFinite` (not a bare `typeof === "number"` check — that passes `NaN`).
+
 Save as `functions/src/recommendations/createRecommendation.ts`.
 
 - [ ] **Step 4: Run the tests to verify they pass**
