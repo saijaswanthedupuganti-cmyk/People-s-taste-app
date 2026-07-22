@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Check, Flame, MapPinPlus, Search, ThumbsUp } from "lucide-react";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../lib/firebase";
+import { useAuth } from "../context/AuthContext";
 import { MOCK_RESTAURANTS } from "../data/mockData";
 import { MEAL_LABEL, SIGNAL_LABEL } from "../types";
 import type { MealTag, PrimarySignal, Restaurant, SignalTag } from "../types";
@@ -46,6 +49,9 @@ export default function Post() {
   const [signalTags, setSignalTags] = useState<Set<SignalTag>>(new Set());
   const [caption, setCaption] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [result, setResult] = useState<{ verificationLevel: number } | null>(null);
 
   const placeMatches = placeQuery.trim()
     ? MOCK_RESTAURANTS.filter((r) => r.name.toLowerCase().includes(placeQuery.trim().toLowerCase()))
@@ -67,17 +73,79 @@ export default function Post() {
     setSet(next);
   }
 
+  const { user } = useAuth();
+
+  async function handleSubmit() {
+    if (!user) {
+      setSubmitError("Sign in to post a recommendation.");
+      return;
+    }
+    setSubmitting(true);
+    setSubmitError(null);
+
+    let userLocation: { lat: number; lng: number } | undefined;
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 }),
+      );
+      userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    } catch {
+      // No GPS - post still goes through at verification level 1 (§10: L1 is always allowed).
+    }
+
+    try {
+      const createRecommendation = httpsCallable(functions, "createRecommendation");
+      const payload = wantsCommunityPlace
+        ? {
+            communityPlace: {
+              name: communityName.trim(),
+              location: userLocation ?? { lat: 0, lng: 0 },
+              area: "Unknown",
+              city: "Hyderabad",
+            },
+            dishName: dishName.trim() || null,
+            mealTags: [...mealTags],
+            signalTags: [...signalTags],
+            primarySignal,
+            caption: caption.trim(),
+            userLocation,
+          }
+        : {
+            restaurantId: restaurant?.id,
+            dishName: dishName.trim() || null,
+            mealTags: [...mealTags],
+            signalTags: [...signalTags],
+            primarySignal,
+            caption: caption.trim(),
+            userLocation,
+          };
+
+      const response = await createRecommendation(payload);
+      setResult(response.data as { verificationLevel: number });
+      setSubmitted(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      setSubmitError(
+        message.includes("restaurant not found")
+          ? "This demo restaurant isn't in the real database yet — try \"Add this place manually\" instead."
+          : message,
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   if (submitted) {
     return (
       <div className="flex min-h-[70vh] flex-col items-center justify-center px-6 text-center">
         <span className="flex h-14 w-14 items-center justify-center rounded-full bg-pt-trust-soft text-pt-trust">
           <Check className="h-7 w-7" aria-hidden="true" strokeWidth={2.5} />
         </span>
-        <h2 className="mt-4 font-display text-xl font-semibold text-pt-ink">Saved locally</h2>
+        <h2 className="mt-4 font-display text-xl font-semibold text-pt-ink">Posted</h2>
         <p className="mt-2 max-w-sm text-sm text-pt-ink-soft">
-          The Post flow UI is complete, but the backend that actually publishes recommendations
-          (createRecommendation, verification, ranking) is Phase 1 build work that hasn't shipped
-          yet — this didn't go anywhere real.
+          {result?.verificationLevel === 2
+            ? "Verified by location — this'll carry more weight in rankings."
+            : "Live on People's Taste. Add a photo next time for stronger verification."}
         </p>
         <button
           type="button"
@@ -291,14 +359,17 @@ export default function Post() {
           ) : (
             <button
               type="button"
-              disabled={!canProceed[step]}
-              onClick={() => setSubmitted(true)}
+              disabled={!canProceed[step] || submitting}
+              onClick={handleSubmit}
               className="min-h-[44px] flex-1 cursor-pointer rounded-full bg-pt-primary px-6 text-sm font-semibold text-white transition-colors duration-150 hover:bg-pt-primary-deep disabled:cursor-not-allowed disabled:bg-pt-surface-3 disabled:text-pt-ink-soft"
             >
-              Post recommendation
+              {submitting ? "Posting…" : "Post recommendation"}
             </button>
           )}
         </div>
+        {submitError && (
+          <p className="mx-auto max-w-2xl px-4 pb-2 text-sm text-pt-danger">{submitError}</p>
+        )}
       </div>
     </div>
   );
