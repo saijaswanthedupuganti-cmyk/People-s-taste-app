@@ -1,6 +1,36 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    match /restaurants/{restaurantId} {
+      allow read: if true;
+      allow write: if false;
+
+      match /votes/{voterUid} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+
+    match /dishes/{dishId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /recommendations/{recId} {
+      allow read: if true;
+      allow write: if false;
+
+      match /votes/{voterUid} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+
+    match /saves/{saveId} {
+      allow read: if request.auth != null && saveId.matches(request.auth.uid + '_.*');
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read: if request.auth != null;
       allow write: if false;
