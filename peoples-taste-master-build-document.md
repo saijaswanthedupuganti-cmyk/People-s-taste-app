@@ -1,6 +1,8 @@
 # PEOPLE'S TASTE — MASTER BUILD DOCUMENT
-**Version 1.0 · July 2026 · Owner: Sai Jaswanth Edupuganti**
+**Version 1.1 · July 2026 · Owner: Sai Jaswanth Edupuganti**
 **Status: Foundation document. Every line is editable by the owner. Claude Code must treat this as the single source of truth.**
+
+**v1.1 changelog:** merged four items from the earlier `Peoples_Taste_Product_Blueprint_v0.1` draft that hadn't made it into v1.0 — Community Places (§5.1), follow-based feed composition (§11.6), per-recommendation feedback loop (§11.7), and the Restaurant Owner role (§7, §7.2). Schema updated to match (§15).
 
 ---
 
@@ -133,6 +135,16 @@ Recommendation {
 
 **Aggregation hierarchy:** `Recommendation → Dish → Restaurant → Area → City`.
 
+## 5.1 Community Places (non-Google restaurants)
+
+Not every place worth recommending is on Google Maps — food trucks, home kitchens, unlisted stalls. A restaurant doc does not require a `googlePlaceId`.
+
+- **Creation:** if restaurant autocomplete (screen 5, Post a Recommendation) returns no match, the user can add a place manually — name + pinned GPS location (device location at time of add, adjustable on a mini-map). No address form, no category picklist required to post; those can be filled in later.
+- **Dedupe-before-create:** before a new community place is saved, check for existing restaurants (Google-sourced or community) within ~150m with a similar name (fuzzy match). Surface candidates: "Did you mean [X]?" before allowing creation — mirrors the Place-ID dedupe rule for Google places (E5).
+- **Merge:** an Editor can merge a community place into another restaurant doc (community-into-community, or community-into-Google once it later appears on Google Places) — same merge tooling as Google dedupe, recommendations re-point to the surviving `restaurantId`.
+- **Trust implication:** community places carry no `placeCache` (no Google data to cache). Everything shown on that restaurant's profile is 100% community-sourced — labeled as such, not hidden.
+- Status: **MVP** (v0.1 blueprint listed this as core, not deferred) — build alongside the Post flow in Phase 1, not Phase 0.
+
 ## 6. Primary Rating Signal (MVP)
 
 **No 1–5 star ratings.** MVP uses a near-binary primary signal plus expressive tags:
@@ -150,6 +162,7 @@ Recommendation {
 | **Visitor** (no account) | Browse, search, view everything. Cannot save, vote, or post. |
 | **Member** | Post recommendations, vote Helpful, save, follow, check in ("I'm Here") |
 | **Tastemaker** (verified blogger) | Everything above + profile badge + featured in area rankings + can propose new restaurants directly to the live database |
+| **Restaurant Owner** (claimed listing) `[Phase 2/DEFERRED]` | A Member/Tastemaker's normal account, plus: edit their claimed restaurant's menu and basic info (hours, phone, description). Cannot edit, hide, or reorder community recommendations. Cannot touch trust scores or ranking. Ownership is an info-management layer, never a ranking lever. |
 | **Editor** (owner/admin) | Seed content, publish Editor's Picks, approve Tastemaker applications, moderate |
 
 ### 7.1 Tastemaker Promotion Path (locked decision)
@@ -158,6 +171,12 @@ Hybrid model — automated threshold, then manual gate:
 2. Owner manually reviews application (photo quality, writing quality, locality coverage, spam signals)
 3. Approve/reject with reason
 This removes 99% of manual review burden while protecting the tier's prestige.
+
+### 7.2 Restaurant Owner Claim Path `[Phase 2/DEFERRED — do not build in Phase 0/1, but reserve the schema fields]`
+
+1. Owner finds their restaurant's profile page → "Claim this listing" → verifies via a method TBD `[OWNER-DECIDES: phone match to Google Business listing / document upload / small deposit-refund]`.
+2. Editor manually approves (same review queue pattern as Tastemaker applications).
+3. Approved claim sets `restaurants/{id}.claimedBy = uid`. The owner can then edit `menu` and non-ranking `placeCache`-adjacent fields on their own restaurant doc only. Security Rules must scope this narrowly: owner writes are allowed only on an explicit owner-editable field allowlist, never on `aggregates`, `recCount`, or anything ranking-adjacent.
 
 ## 8. Information Architecture (Web MVP)
 
@@ -179,7 +198,7 @@ STATE B — "I'm exploring" (location denied, or planning)
 2. **Search & Results** — keyword search over `query_tags` + chip refinement (§13)
 3. **Recommendation Detail** — full card: dish, photos, caption, author trust tier, verification badge, Helpful/Save, map link
 4. **Restaurant Profile** — aggregated view: emergent Best Dish / Best per Meal / all recommendations; Google Maps embed; cached Place data
-5. **Post a Recommendation** — restaurant autocomplete (Places) → dish → meal tags → primary signal → signal tags → caption → photo; EXIF-timestamp pre-selects meal tag
+5. **Post a Recommendation** — restaurant autocomplete (Places) → no match? "Add this place manually" (§5.1 Community Places) → dish → meal tags → primary signal → signal tags → caption → photo; EXIF-timestamp pre-selects meal tag
 6. **"I'm Here" Check-in** — one-tap verified visit; evening reminder → "How was it?" completion prompt `[Phase 2]`
 7. **Profile (own)** — recommendations, saves, trust tier (label only, never raw number), progress to next tier
 8. **Profile (public)** — author's recommendations, tier badge, areas covered
@@ -278,6 +297,34 @@ Home feed reads ONE precomputed document, not a live sort of thousands. Rebuilt 
 ### 11.5 Comparison buckets
 `bucketId = {city}|{area}|{mealTag}|{budgetBand}` — any future pairwise comparison feature `[DEFERRED]` operates ONLY inside a bucket. Never compare a luxury dinner against a chai stall (documented Beli "wonky comparison" failure).
 
+## 11.6 Feed Composition & Follow Priority (locked decision)
+
+The home feed (screen 1) stays a **single precomputed leaderboard read** (§11.4) as the base layer — that's the cost-control mechanism and it does not change. Follow is layered on top, not a replacement:
+
+```
+Home feed assembly, in order, de-duplicated, capped to feed page size:
+  1. Recent recommendations from Followed Trusted Foodies (own area/city first)
+  2. Recent recommendations from other Followed accounts (any tier), own area/city
+  3. Nearby Trusted Foodies' recent recommendations (not followed) — discovery surface
+  4. Trending dishes — the precomputed leaderboard read (§11.4), unchanged
+  5. Nearby restaurants with few/no recommendations yet
+  6. Community places (§5.1) nearby, honestly labeled "Not yet many recommendations"
+```
+
+- Layer 1–2 is a cheap indexed query (`recommendations` where `authorId in following[]`, limit ~50, most-recent-first) — small because a user follows few people, not expensive at any scale.
+- Layers 3–6 are exactly the existing leaderboard + empty-state ladder (§12) — unchanged, still Cloud-Function-maintained.
+- A user who follows nobody yet sees layers 3–6 only — i.e. today's MVP behavior. Follow is additive, never required (Principle #4, low-friction contribution).
+- `users/{uid}` needs a queryable "who does this user follow" source for layer 1–2 — see schema update in §15.
+
+## 11.7 Recommendation Feedback Loop `[Phase 2 — ships alongside "I'm Here" check-ins, §10]`
+
+Extends the existing check-in flow (§10): if a check-in was reached **via a specific recommendation** (the user tapped "I'm Here" from that recommendation's detail screen, or the Post/visit was deep-linked from it), the evening "How was it?" prompt (§10) also asks: *"Did [author]'s recommendation meet your expectations?"*
+
+- **Positive:** no ranking change. Absence of negative signal is itself the reward — do not inflate `rankingScore` on positive feedback (avoids reintroducing a disguised star-rating).
+- **Negative, repeated:** each recommendation accumulates a small `feedbackAdjustment` (function-maintained, bounded, floor at −0.3× its own weight — can suppress, never zero out or hide). Feeds into `rankingScore` (§11.1) as an additional multiplicative term. A single negative report does nothing; the signal only moves after a small cluster of independent negative reports (anti-brigading, same principle as geo-mismatch suppression — silent, never shaming, never blocking the post).
+- After N negative reports (threshold TBD `[OWNER-DECIDES]`), the recommendation enters the Editor moderation queue (`reports/{reportId}`) for a human look — it is never auto-removed.
+- This is distinct from the `Overrated` signal tag (§6), which is a voluntary reaction anyone can attach; this is feedback specifically from someone who followed that exact recommendation to the venue.
+
 ## 12. Empty-State Ladder (locked — "0 results" is forbidden)
 
 On any empty query result, fall through in order, each layer labeled honestly:
@@ -287,7 +334,7 @@ On any empty query result, fall through in order, each layer labeled honestly:
 3. Whole city
 4. **Editor's Picks** for the category
 5. Raw Google Places results, clearly labeled **"Not yet community ranked"**
-6. Contribution prompt: **"Be the first foodie to put [area] on the map"** → deep-links to Post flow
+6. Contribution prompt: **"Be the first foodie to put [area] on the map"** → deep-links to Post flow (Google autocomplete or, if absent there too, straight to Community Place creation, §5.1)
 
 ## 13. Search & Discovery (locked — structured-first)
 
@@ -337,11 +384,21 @@ users/{uid}
   tasteSeeds[]          // [DEFERRED consumption] passively accumulated cuisine/vibe tags
                         // from posts & saves — fuels future Taste Graph. Write from day one.
 
-restaurants/{restaurantId}          // cache-first: Google data enters ONCE
-  name, googlePlaceId
+follows/{followerUid}_{followeeUid}   // doc ID pattern mirrors saves/votes — structurally one-follow-per-pair
+  followerUid, followeeUid, createdAt
+  // powers §11.6 feed layer 1–2: query where followerUid == me, or use as a denormalized
+  // followingIds[] array on users/{uid} if reads outnumber writes enough to justify it — [OWNER-DECIDES at Phase 1 build time]
+
+restaurants/{restaurantId}          // cache-first: Google data enters ONCE (Google-sourced) OR community-created (§5.1)
+  name, googlePlaceId               // null for community places
+  source                            // "google" | "community"
+  createdBy                         // uid, community places only
+  claimedBy                         // uid | null — §7.2 Restaurant Owner claim
+  ownerClaimStatus                  // "none" | "pending" | "approved" — [Phase 2/DEFERRED]
   location (GeoPoint), city, area, address
   categories[], priceBand
-  placeCache: { hours, phone, photos[], fetchedAt }   // refreshed max 1×/30 days
+  menu[]                            // owner-editable once claimed — [Phase 2/DEFERRED]
+  placeCache: { hours, phone, photos[], fetchedAt }   // refreshed max 1×/30 days — Google-sourced only, absent on community places
   aggregates: { recCount, topDishId, topPerMeal{}, hiddenGemScore }  // Cloud Function-maintained
 
 dishes/{dishId}
@@ -358,7 +415,8 @@ recommendations/{recId}             // THE ATOMIC UNIT
   verificationMultiplier            // 1.0 | 1.3 | 1.7 | 2.0
   trustSnapshot                     // author trust frozen at publish
   weightedHelpful                   // Σ voter-weighted votes (function-maintained)
-  rankingScore                      // §11.1 output (function-maintained)
+  feedbackAdjustment                // §11.7, function-maintained, default 0, floor −0.3× own weight — [Phase 2/DEFERRED]
+  rankingScore                      // §11.1 output, now also folds in feedbackAdjustment (function-maintained)
   query_tags[]                      // §13.1, generated at write
   bucketId                          // {city}|{area}|{meal}|{budget}
   geoAtPost (GeoPoint, private), exifTimestamp
@@ -370,6 +428,8 @@ recommendations/{recId}/votes/{voterUid}   // doc ID = UID → one vote enforced
 
 saves/{uid}_{recId}
 checkins/{checkinId}                // [Phase 2] uid, restaurantId, geo, ts, followedUp
+  viaRecommendationId               // nullable — §11.7, set when check-in was reached from a specific recommendation
+  visitFeedback                     // "positive" | "negative" | null — §11.7, set by evening prompt
 editorsPicks/{pickId}               // title, area, dishCategory, recIds[], publishedAt
 leaderboards/{city}_{area}_{meal}_{category}
   entries[]: { recId, rankingScore, restaurantName, dishName, authorTier, photo }
@@ -455,7 +515,9 @@ Taste Graph ("92% taste match with people like you") · pairwise in-bucket compa
 | D3 | Typeface pairing | Bricolage+Inter / General Sans+Inter | Bricolage+Inter |
 | D4 | Wordmark treatment | — | Plain wordmark, lowercase |
 | D5 | Budget band thresholds (₹) | e.g. <300 / 300–800 / 800+ | <300 / 300–800 / 800+ per person |
+| D6 | Restaurant Owner claim verification method (§7.2) | Phone match to Google Business / document upload / deposit-refund | Blocked — must choose before Phase 2 owner claims ship |
+| D7 | Negative-feedback report threshold before ranking suppression kicks in (§11.7) | e.g. 3 / 5 / 10 independent reports | Blocked — must choose before Phase 2 feedback loop ships |
 
 ---
 
-*End of Master Build Document v1.0. Every line above is subject to owner revision. Claude Code: build Phase 0 first, confirm exit criteria, then request approval to proceed.*
+*End of Master Build Document v1.1. Every line above is subject to owner revision. Claude Code: build Phase 0 first, confirm exit criteria, then request approval to proceed.*
