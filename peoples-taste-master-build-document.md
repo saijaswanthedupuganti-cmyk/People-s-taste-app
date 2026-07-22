@@ -1,8 +1,10 @@
 # PEOPLE'S TASTE — MASTER BUILD DOCUMENT
-**Version 1.1 · July 2026 · Owner: Sai Jaswanth Edupuganti**
+**Version 1.2 · July 2026 · Owner: Sai Jaswanth Edupuganti**
 **Status: Foundation document. Every line is editable by the owner. Claude Code must treat this as the single source of truth.**
 
 **v1.1 changelog:** merged four items from the earlier `Peoples_Taste_Product_Blueprint_v0.1` draft that hadn't made it into v1.0 — Community Places (§5.1), follow-based feed composition (§11.6), per-recommendation feedback loop (§11.7), and the Restaurant Owner role (§7, §7.2). Schema updated to match (§15).
+
+**v1.2 changelog:** merged six concrete findings from external research (trust-algorithm literature, anti-fraud case studies, competitor teardown, Firestore-at-scale data) — corrected the time-decay constant to an internally consistent value (§11.1), added a trust-velocity anti-farming rule (§9.3), added an impossible-travel abuse check (§14), added two 2026 competitors to the positioning table (§2), documented the Postgres+pgvector migration trigger (§16.1), and flagged the confidence/sample-size gap in the v1 ranking formula as a named consideration for v2 (§11.2). Everything else from that research (market benchmarks, UX teardown detail) was read and is *consistent with* existing decisions, not additive — noted inline where relevant, not expanded into new sections.
 
 ---
 
@@ -53,6 +55,8 @@ Every recommendation answers: **"Who recommended what, where, when — and why s
 | Zomato | Delivery + listings | We are discovery-only, no delivery conflict of interest |
 | Beli | Friend graph + pairwise ranking | We use trust weighting, no forced social onboarding |
 | Instagram | Beautiful content | We attach content to a structured, queryable taste database |
+| Trusted Tastes (2026) | Friend-graph-first food discovery, contact sync | We don't require a social graph to be useful on day one — trust comes from verification + community track record, not who you already know |
+| MustTaste (2026) | Generic food discovery, no published trust mechanism | We're structurally trust-weighted, not a ratings reskin |
 
 **Market timing signal (for pitch use):** AI-assisted local discovery usage grew from 6% to 45% of consumers in one year (BrightLocal 2026 survey). People increasingly expect context-rich, personalized answers — not filter walls.
 
@@ -254,6 +258,14 @@ Explorer → Local Foodie → Verified Foodie → Neighborhood Expert → City E
 ### 9.2 trustSnapshot
 Every recommendation stores the author's trust at publish time. Rankings stay stable even if the author's reputation later changes. Recalculation of old snapshots: never (except on fraud takedown).
 
+### 9.3 Trust Velocity Check (anti "slow-burn" farming)
+
+Documented attack pattern on trust-weighted platforms: an account posts genuinely, patiently, for weeks or months to earn trust, then "goes bad" — sells its now-high-weight votes to a paid promotion ring. A pure trust score can't distinguish earned-slowly from earned-just-fast-enough-to-still-look-organic, so add a rate check on the trust *curve*, not just its current value:
+
+- If an account's trust score climbs two tiers within 30 days, its votes are weighted at ×0.5 for the following 60 days (does not affect the account's own tier display or ability to post — only how much its *votes* count toward other people's ranking scores).
+- This is a Cloud-Function-computed flag (`penalties`-adjacent, not a new penalty category — doesn't need a user-facing message; silent per the existing anti-shaming principle, §10).
+- Legitimate fast risers (a genuine local expert who joins and is very active) are only temporarily discounted, never blocked or demoted — false positives cost nothing but a 60-day vote-weight dip.
+
 ## 10. Verification Levels (locked decision — weighted, never gatekept)
 
 | Level | Evidence | Weight multiplier |
@@ -276,11 +288,13 @@ rankingScore = (weightedHelpful × trustSnapshot/100 × verificationMultiplier) 
 ```
 
 - `weightedHelpful` = Σ(each Helpful vote × voter's trust/100). 100 fake new accounts (0.10–0.15 weight each) cannot outrank 20 trusted users (0.7–0.9 each). **Never count raw likes.**
-- Time decay `e^(−k·Δt)` tuned to: 0–7 days ≈ 100% · 30 days ≈ 85% · 90 days ≈ 70% · 365 days ≈ 50%. Timeless classics stay visible; new finds get a real chance.
+- Time decay `e^(−k·Δt)`, **k = ln(2)/365 ≈ 0.0019/day** (a 365-day half-life — corrected in v1.2; the original narrative curve wasn't a real exponential fit). Actual curve at this k: 7 days ≈ 99% · 30 days ≈ 94% · 90 days ≈ 84% · 180 days ≈ 71% · 365 days = 50% exactly. Deliberately slower than content-feed platforms (Reddit/HN half-life is ~10–12 *hours*, not days) — a great biryani recommendation shouldn't fade like a news post; product principle "timeless classics stay visible" wins over feed-freshness norms here.
 - Recomputed by Cloud Function on every vote event, written to the recommendation doc.
 
 ### 11.2 v2 formula `[DEFERRED — do not build in Phase 1]`
 `40% trust + 30% weighted votes + 15% saves + 10% freshness + 5% comments` — adopt only after real usage data exists to tune five weights against. Tuning five weights with 20 users is guesswork.
+
+**Known gap in v1, to address when v2 is designed:** the v1 formula has no confidence/sample-size term. Mature ranking systems (Wilson score interval on Reddit, Bayesian averaging on IMDb) explicitly shrink small-sample items toward a prior so one early enthusiastic vote can't look as strong as broad, sustained agreement. `weightedHelpful` being a plain sum means more votes always help — it does not have Wilson's specific failure mode (ratio-based systems where 1/1 looks like 100%), but it also means a brand-new rec from a very-high-trust author can rank on par with a well-established one purely on trust multiplier, before the community has weighed in at all. Deliberately not fixed in v1 (same reasoning as the paragraph above — five-weight tuning needs real usage data); flag it here so it isn't rediscovered as a surprise later.
 
 ### 11.3 Location personalization (locked decision)
 - GPS captured **on app open / on search only.** No continuous background tracking. No movement-pattern learning `[DEFERRED indefinitely]`.
@@ -363,6 +377,10 @@ constraint: veg, parking, late_night, no_wait
 5. **Geo-mismatch suppression** — flag, suppress weight, never block (§10).
 6. **Device fingerprint** — store deviceId/OS/appVersion per account; many accounts on one device → review queue.
 7. **Trust-weighted everything** — the ranking math itself is the last line of defense (§11.1).
+8. **Impossible-travel check** — if the same account posts verified (L2+) recommendations in two locations farther apart than plausible travel time allows (e.g. Secunderabad and Banjara Hills within minutes), flag for review. Same silent, non-blocking treatment as geo-mismatch (§10) — never accuse, just suppress weight and queue.
+9. **Trust velocity check** — see §9.3. Distinct from raw account age: catches fast-but-plausible-looking trust farming, not just brand-new accounts.
+
+**Known platform limitation, not a gap to silently paper over:** proper GPS-spoof detection (Wi-Fi/Bluetooth beacon correlation, sensor-fusion movement checks) requires native mobile APIs the web platform doesn't expose. Web MVP can only do distance-based geo-mismatch (§10) and impossible-travel (above) — both good signals, neither as strong as what a native app could do. Revisit when the `[DEFERRED]` mobile app phase happens (§17 Phase 4).
 
 Evidence this is not optional: Yelp closed 551,200 accounts and flagged ~550 businesses for review manipulation in a single year. Integrity is a launch feature, not a growth feature.
 
@@ -449,7 +467,10 @@ reports/{reportId}                  // moderation queue
 
 **Budget reality:** $200/month free credit ≈ ~28k Places calls. With the Iron Cache Rule, 1,000–5,000 users fit inside free tier. Hard quotas + billing alerts set per-API in Cloud Console before launch.
 
-**Tech stack (web MVP):** React + Vite · Tailwind (tokens from §4.2 as CSS variables) · Firebase Auth / Firestore / Storage / Cloud Functions / App Check / Hosting · localhost → Firebase Hosting.
+**Tech stack (web MVP):** React + Vite · Tailwind (tokens from §4.2 as CSS variables) · Firebase Auth / Firestore / Storage / Cloud Functions / App Check (backend only) · **Hosting: Vercel, not Firebase Hosting** — owner's existing Vercel account + private domain (locked v1.2; Firebase Hosting site still exists as a fallback/unused). `firebase.json`'s `hosting` block should stay absent/unused; deploys go through Vercel's GitHub integration.
+
+### 16.1 Data platform migration trigger `[DEFERRED — do not build, just know the exit condition]`
+Firestore is the right call through the beta and the low-thousands-of-users stage — real-time listeners and zero schema migration outweigh its per-read cost at this size. The exit condition, per research into comparable platforms: once "similar dishes" search, multi-condition ranking queries (e.g. "top biryani in Jubilee Hills filtered by trust tier and price"), or genuine vector-similarity features are needed, Postgres+pgvector becomes meaningfully cheaper and more capable than layering Algolia/Meilisearch on top of Firestore. Don't pre-migrate — this is a ~10k-user-and-up decision, not a Phase 0–3 one.
 
 ---
 
@@ -473,6 +494,7 @@ Tier system + badges · Tastemaker threshold + application + Editor review · "I
 - Owner + editors seed **300 restaurants, 800 recommendations**, honestly badged Editor's Picks (they sink beneath community content as real usage grows)
 - Closed beta: **20–50 invited local foodies** (waitlist for everyone else — density before breadth)
 - Optional NL-to-chips search layer · Algolia if tag search feels limiting
+- **Beta success benchmarks** (per hyperlocal-launch research, comparable to early Foursquare/Swarm): D1 retention >50%, D7 >25%, D30 >10% if the first-contribution loop is under 30 seconds. CAC target: ₹0–₹500/user via personal networks, college foodie groups, local WhatsApp communities — not paid acquisition at this stage.
 
 ### Phase 4 — `[DEFERRED — design north star, do not build]`
 Taste Graph ("92% taste match with people like you") · pairwise in-bucket comparisons · v2 ranking formula · monetization (sequence when ready: affiliate reservations → premium Tastemaker tools → B2B insights; Yelp-style promoted listings only at real scale, always separated from organic ranking) · mobile apps · second city.
@@ -520,4 +542,4 @@ Taste Graph ("92% taste match with people like you") · pairwise in-bucket compa
 
 ---
 
-*End of Master Build Document v1.1. Every line above is subject to owner revision. Claude Code: build Phase 0 first, confirm exit criteria, then request approval to proceed.*
+*End of Master Build Document v1.2. Every line above is subject to owner revision. Claude Code: build Phase 0 first, confirm exit criteria, then request approval to proceed.*
