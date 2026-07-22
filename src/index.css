@@ -5,13 +5,39 @@
   --color-pt-primary-deep: #a63a10;
   --color-pt-accent: #f2a03d;
   --color-pt-ink: #231a15;
+  --color-pt-ink-soft: #6b5c53;
   --color-pt-surface: #fdf8f3;
   --color-pt-surface-2: #f6ede3;
+  --color-pt-surface-3: #efe2d3;
   --color-pt-trust: #2e7d5b;
+  --color-pt-trust-soft: #e4f0ea;
   --color-pt-danger: #c0392b;
+  --color-pt-border: #e8dccb;
 
   --font-display: "Bricolage Grotesque", "General Sans", sans-serif;
   --font-body: "Inter", sans-serif;
+
+  --shadow-card: 0 1px 2px rgba(35, 26, 21, 0.04), 0 4px 16px rgba(35, 26, 21, 0.06);
+  --shadow-card-hover: 0 2px 4px rgba(35, 26, 21, 0.06), 0 8px 24px rgba(35, 26, 21, 0.1);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 body {
@@ -19,4 +45,14 @@ body {
   background-color: var(--color-pt-surface);
   color: var(--color-pt-ink);
   font-family: var(--font-body);
+  overscroll-behavior-y: contain;
+}
+
+::selection {
+  background-color: var(--color-pt-accent);
+  color: var(--color-pt-ink);
+}
+
+input[type="search"]::-webkit-search-cancel-button {
+  display: none;
 }
