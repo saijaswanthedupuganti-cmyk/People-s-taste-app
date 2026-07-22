@@ -1,5 +1,5 @@
 import type { Firestore } from "firebase-admin/firestore";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import type {
   NewRecommendationInput,
   NewRestaurantInput,
@@ -34,7 +34,12 @@ export class FirestoreStore implements Store {
   async getRestaurant(id: string): Promise<RestaurantRecord | null> {
     const doc = await this.db.collection("restaurants").doc(id).get();
     if (!doc.exists) return null;
-    return { id: doc.id, ...(doc.data() as Omit<RestaurantRecord, "id">) };
+    const data = doc.data()!;
+    return {
+      id: doc.id,
+      ...(data as Omit<RestaurantRecord, "id" | "createdAt">),
+      createdAt: (data.createdAt as Timestamp).toMillis(),
+    };
   }
 
   async findNearbyRestaurants(_lat: number, _lng: number, _radiusMeters: number): Promise<RestaurantRecord[]> {
@@ -42,7 +47,14 @@ export class FirestoreStore implements Store {
     // Fine at beta scale (dozens of restaurants); revisit with a geohash-bucketed
     // query (geofire-common) once the restaurant count is in the hundreds+.
     const snap = await this.db.collection("restaurants").get();
-    return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<RestaurantRecord, "id">) }));
+    return snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        ...(data as Omit<RestaurantRecord, "id" | "createdAt">),
+        createdAt: (data.createdAt as Timestamp).toMillis(),
+      };
+    });
   }
 
   async createRestaurant(input: NewRestaurantInput): Promise<string> {
@@ -89,7 +101,12 @@ export class FirestoreStore implements Store {
   async getRecommendation(id: string): Promise<RecommendationRecord | null> {
     const doc = await this.db.collection("recommendations").doc(id).get();
     if (!doc.exists) return null;
-    return { id: doc.id, ...(doc.data() as Omit<RecommendationRecord, "id">) };
+    const data = doc.data()!;
+    return {
+      id: doc.id,
+      ...(data as Omit<RecommendationRecord, "id" | "createdAt">),
+      createdAt: (data.createdAt as Timestamp).toMillis(),
+    };
   }
 
   async getSave(id: string): Promise<boolean> {

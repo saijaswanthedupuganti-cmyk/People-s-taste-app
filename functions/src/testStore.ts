@@ -35,6 +35,8 @@ export function createTestStore() {
         area: input.area,
         city: input.city,
         aggregates: { recCount: 0 },
+        createdBy: input.createdBy,
+        createdAt: Date.now(),
       });
       return id;
     },
@@ -57,6 +59,7 @@ export function createTestStore() {
         trustSnapshot: input.trustSnapshot,
         weightedHelpful: 0,
         helpfulVoteCount: 0,
+        status: "active",
         createdAt: Date.now(),
       });
       return id;

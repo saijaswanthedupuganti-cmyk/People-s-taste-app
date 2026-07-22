@@ -6,6 +6,8 @@ export interface RestaurantRecord {
   area: string;
   city: string;
   aggregates: { recCount: number };
+  createdBy: string;
+  createdAt: number;
 }
 
 export interface NewRestaurantInput {
@@ -29,6 +31,7 @@ export interface RecommendationRecord {
   trustSnapshot: number;
   weightedHelpful: number;
   helpfulVoteCount: number;
+  status: string;
   createdAt: number;
 }
 
