@@ -1,10 +1,12 @@
 # PEOPLE'S TASTE — MASTER BUILD DOCUMENT
-**Version 1.2 · July 2026 · Owner: Sai Jaswanth Edupuganti**
+**Version 1.3 · July 2026 · Owner: Sai Jaswanth Edupuganti**
 **Status: Foundation document. Every line is editable by the owner. Claude Code must treat this as the single source of truth.**
 
 **v1.1 changelog:** merged four items from the earlier `Peoples_Taste_Product_Blueprint_v0.1` draft that hadn't made it into v1.0 — Community Places (§5.1), follow-based feed composition (§11.6), per-recommendation feedback loop (§11.7), and the Restaurant Owner role (§7, §7.2). Schema updated to match (§15).
 
 **v1.2 changelog:** merged six concrete findings from external research (trust-algorithm literature, anti-fraud case studies, competitor teardown, Firestore-at-scale data) — corrected the time-decay constant to an internally consistent value (§11.1), added a trust-velocity anti-farming rule (§9.3), added an impossible-travel abuse check (§14), added two 2026 competitors to the positioning table (§2), documented the Postgres+pgvector migration trigger (§16.1), and flagged the confidence/sample-size gap in the v1 ranking formula as a named consideration for v2 (§11.2). Everything else from that research (market benchmarks, UX teardown detail) was read and is *consistent with* existing decisions, not additive — noted inline where relevant, not expanded into new sections.
+
+**v1.3 changelog:** the `Peoples_Taste_Claude_Code_Master_Spec` (Kimi) document's full type schema was cross-checked use-case-by-use-case against this doc, not just for bugs. Six genuine feature gaps surfaced — things that schema assumed exist but this doc never specified: user handles/public profile URLs (§15), blocking (§14, §15), People search (§13), notifications (§8.1 screen 13, §15), user-level dietary/cuisine/price preferences as feed personalization (§13.2), and PWA installability (§16). Also added: lightweight replies as an explicit **open decision** rather than silently adopting full comment threads (D8, §20) — Kimi's schema assumes comments exist, but that's in tension with Principle #1 ("recommendation is the atomic unit," not a review-and-discussion thread) and deserves an owner call, not a silent merge. Architecture itself (Vite/Firestore/flat schema/trust-weighted voting) is unchanged — this pass is about use-case completeness, not another stack decision.
 
 ---
 
@@ -159,6 +161,13 @@ Not every place worth recommending is on Google Maps — food trucks, home kitch
 
 `Overrated` is the only negative signal. It never appears on a recommendation the user creates — it is a reaction other users can attach to an existing recommendation/venue. `[DEFERRED]` weighting tags into ranking (v2, once data shows which tags correlate with saves).
 
+### 6.1 Comments/replies — open decision, not silently adopted `[OWNER-DECIDES, D8 §20]`
+
+The Kimi spec's schema assumes recommendation comment threads exist (`commentCount`, a comment-related notification). That's a real tension with Principle #1 — "Recommendation is the atomic unit... Not the review... Not the post" — full open-ended comment threads start to turn a recommendation into exactly the review-app discussion format this product is deliberately not building. Two options, not decided yet:
+- **(a) No comments at all in MVP.** Helpful/Overrated reactions are the only response mechanism. Simplest, most on-brand, easiest to moderate.
+- **(b) One tightly-scoped reply, not a thread.** E.g. only the author can reply once to their own recommendation (an update: "still good as of March" style), or only Tastemaker+ tier can add a single public note. Preserves "atomic unit," adds a narrow freshness/credibility signal.
+Do not build either until this is picked — schema has no `comments` collection yet on purpose.
+
 ## 7. User Roles
 
 | Role | Can do |
@@ -196,10 +205,10 @@ STATE B — "I'm exploring" (location denied, or planning)
   → same downstream screens
 ```
 
-### 8.1 Screen Map (Web MVP — 12 screens)
+### 8.1 Screen Map (Web MVP — 14 screens)
 
 1. **Landing / Home Feed** — meal-window-aware ranked recommendation feed for current/selected area; filter chips row
-2. **Search & Results** — keyword search over `query_tags` + chip refinement (§13)
+2. **Search & Results** — keyword search over `query_tags` + chip refinement (§13); includes a **People** tab (§13.3) — search by handle/display name, separate from dish/place results, never blended into the same ranked list
 3. **Recommendation Detail** — full card: dish, photos, caption, author trust tier, verification badge, Helpful/Save, map link
 4. **Restaurant Profile** — aggregated view: emergent Best Dish / Best per Meal / all recommendations; Google Maps embed; cached Place data
 5. **Post a Recommendation** — restaurant autocomplete (Places) → no match? "Add this place manually" (§5.1 Community Places) → dish → meal tags → primary signal → signal tags → caption → photo; EXIF-timestamp pre-selects meal tag
@@ -210,6 +219,8 @@ STATE B — "I'm exploring" (location denied, or planning)
 10. **Auth** — Google OAuth + phone. No anonymous accounts. Onboarding ≤ 2 screens, ZERO mandatory preference questions, ZERO friend-invite gates
 11. **Editor Console** (admin-only route) — seed restaurants, publish Editor's Picks, review applications, moderation queue
 12. **Static** — About, Contact, Privacy (location-permission explanation lives here)
+13. **Notifications** `[Phase 2]` — new follower, helpful vote received, tier-up, verification approved, community place approved, evening feedback prompt (§11.7), trending nearby. Read/unread state, deep-links back into the relevant screen. No push spam by default — see §13.4 for defaults.
+14. **Settings** — notification preferences (per-type toggles, §13.4), dietary/cuisine/price preferences (§13.2), blocked accounts list (§14), account deletion (§19 privacy — cascades votes, anonymizes recs)
 
 ### 8.2 Navigation Rules
 - Bottom/side nav: Home · Search · Post (+) · Saved · Profile
@@ -368,6 +379,21 @@ vibe:       hidden_gem, aesthetic, lively, quiet, authentic
 constraint: veg, parking, late_night, no_wait
 ```
 
+### 13.2 User preferences as personalization, not gating (locked decision)
+
+`users/{uid}.preferences: { dietary[], cuisines[], priceRange }` — set once during onboarding (skippable, zero mandatory questions per Principle #4) or later in Settings.
+
+- **Pre-selects filter chips, never silently filters results.** A vegetarian user opens Search and sees the "Veg" chip already active — one tap to remove it. This is the same "personalizes, doesn't gate" rule already locked for location (§11.3); preferences follow the identical pattern so the product stays internally consistent.
+- Feeds into feed ranking as a *tie-breaker* only, same tier as proximity in §11.3 — never outranks a real trust gap.
+
+### 13.3 People Search (§8.1 screen 2, People tab)
+
+Search by `handle` (exact/prefix match) or `displayName` (Firestore `array-contains` on a lowercased tokens array, same mechanism as §13's dish/place search — no new infra). Results show tier badge + areas covered, link straight to the public profile screen. Blocked accounts (§14) never appear, in either direction.
+
+### 13.4 Notification defaults (§8.1 screen 13)
+
+Default ON: new follower, tier-up, verification approved, evening feedback prompt. Default OFF: trending nearby (opt-in only — this is the one category that can feel like spam if defaulted on). All toggleable per-type in Settings (screen 14), never an all-or-nothing switch.
+
 ## 14. Anti-Abuse Stack (all server-side, Phase 1 — non-negotiable)
 
 1. **Firebase App Check** — on from day one; kills scripted/bot writes.
@@ -379,6 +405,7 @@ constraint: veg, parking, late_night, no_wait
 7. **Trust-weighted everything** — the ranking math itself is the last line of defense (§11.1).
 8. **Impossible-travel check** — if the same account posts verified (L2+) recommendations in two locations farther apart than plausible travel time allows (e.g. Secunderabad and Banjara Hills within minutes), flag for review. Same silent, non-blocking treatment as geo-mismatch (§10) — never accuse, just suppress weight and queue.
 9. **Trust velocity check** — see §9.3. Distinct from raw account age: catches fast-but-plausible-looking trust farming, not just brand-new accounts.
+10. **Blocking (Phase 1, not deferred)** — this is a user-safety baseline, not a nice-to-have, so it ships with the core loop rather than waiting for Phase 2 social features. `blocks/{blockerUid}_{blockedUid}` — same doc-ID-enforced pattern as `follows` and `votes` (§15). A block is one-directional and silent: the blocked account is never notified, simply stops appearing in the blocker's feed, search (§13.3), and notifications, and the blocker's public content stops surfacing to the blocked account. Enforced server-side in the feed/search Cloud Functions, not just hidden client-side.
 
 **Known platform limitation, not a gap to silently paper over:** proper GPS-spoof detection (Wi-Fi/Bluetooth beacon correlation, sensor-fusion movement checks) requires native mobile APIs the web platform doesn't expose. Web MVP can only do distance-based geo-mismatch (§10) and impossible-travel (above) — both good signals, neither as strong as what a native app could do. Revisit when the `[DEFERRED]` mobile app phase happens (§17 Phase 4).
 
@@ -392,7 +419,7 @@ Evidence this is not optional: Yelp closed 551,200 accounts and flagged ~550 bus
 
 ```
 users/{uid}
-  username, displayName, photoURL
+  username, displayName, photoURL   // username IS the public handle — profile URL slug (§8.1 screen 8) and People Search (§13.3) target. One field, not a duplicate "handle" field.
   city, homeArea
   trustScore            // float 0–100, server-writable only
   tier                  // "explorer" … "legend"
@@ -401,11 +428,21 @@ users/{uid}
   createdAt
   tasteSeeds[]          // [DEFERRED consumption] passively accumulated cuisine/vibe tags
                         // from posts & saves — fuels future Taste Graph. Write from day one.
+  preferences: { dietary[], cuisines[], priceRange }   // §13.2, personalization only, never gates results
+  notificationSettings: { newFollower, tierUp, verificationApproved, feedbackPrompt, trendingNearby }  // §13.4, booleans, all default true except trendingNearby
 
 follows/{followerUid}_{followeeUid}   // doc ID pattern mirrors saves/votes — structurally one-follow-per-pair
   followerUid, followeeUid, createdAt
   // powers §11.6 feed layer 1–2: query where followerUid == me, or use as a denormalized
   // followingIds[] array on users/{uid} if reads outnumber writes enough to justify it — [OWNER-DECIDES at Phase 1 build time]
+
+blocks/{blockerUid}_{blockedUid}      // §14 point 10 — same doc-ID-enforced one-per-pair pattern
+  blockerUid, blockedUid, createdAt
+
+notifications/{notifId}               // [Phase 2] §8.1 screen 13
+  userId, type                        // "new_follower" | "helpful_vote" | "tier_up" | "verification_approved" | "place_approved" | "feedback_request" | "trending_nearby"
+  payload: { actorId, actorUsername, recId, placeId, message, deepLink }
+  read, createdAt
 
 restaurants/{restaurantId}          // cache-first: Google data enters ONCE (Google-sourced) OR community-created (§5.1)
   name, googlePlaceId               // null for community places
@@ -433,6 +470,7 @@ recommendations/{recId}             // THE ATOMIC UNIT
   verificationMultiplier            // 1.0 | 1.3 | 1.7 | 2.0
   trustSnapshot                     // author trust frozen at publish
   weightedHelpful                   // Σ voter-weighted votes (function-maintained)
+  viewCount, shareCount             // function-maintained counters, informational/analytics only — NOT ranking inputs (Principle #2: no vanity-metric gaming, same reason raw likes are excluded from §11.1)
   feedbackAdjustment                // §11.7, function-maintained, default 0, floor −0.3× own weight — [Phase 2/DEFERRED]
   rankingScore                      // §11.1 output, now also folds in feedbackAdjustment (function-maintained)
   query_tags[]                      // §13.1, generated at write
@@ -468,6 +506,8 @@ reports/{reportId}                  // moderation queue
 **Budget reality:** $200/month free credit ≈ ~28k Places calls. With the Iron Cache Rule, 1,000–5,000 users fit inside free tier. Hard quotas + billing alerts set per-API in Cloud Console before launch.
 
 **Tech stack (web MVP):** React + Vite · Tailwind (tokens from §4.2 as CSS variables) · Firebase Auth / Firestore / Storage / Cloud Functions / App Check (backend only) · **Hosting: Vercel, not Firebase Hosting** — owner's existing Vercel account + private domain (locked v1.2; Firebase Hosting site still exists as a fallback/unused). `firebase.json`'s `hosting` block should stay absent/unused; deploys go through Vercel's GitHub integration.
+
+**PWA installability (locked — Phase 1, not deferred):** `manifest.json` + a service worker shipping with the Phase 1 build, not bolted on later. This isn't a nice-to-have here — E10 (§18, already locked) requires "cached last feed + clear retry states; post drafts persist locally," which is a service worker's job either way. The earlier throwaway prototype (Nov 2025) already had `manifest.json`/`sw.js` — this reinstates that, properly, against the real schema this time.
 
 ### 16.1 Data platform migration trigger `[DEFERRED — do not build, just know the exit condition]`
 Firestore is the right call through the beta and the low-thousands-of-users stage — real-time listeners and zero schema migration outweigh its per-read cost at this size. The exit condition, per research into comparable platforms: once "similar dishes" search, multi-condition ranking queries (e.g. "top biryani in Jubilee Hills filtered by trust tier and price"), or genuine vector-similarity features are needed, Postgres+pgvector becomes meaningfully cheaper and more capable than layering Algolia/Meilisearch on top of Firestore. Don't pre-migrate — this is a ~10k-user-and-up decision, not a Phase 0–3 one.
@@ -507,6 +547,9 @@ Taste Graph ("92% taste match with people like you") · pairwise in-bucket compa
 - U3 · Posts chai recommendation with photo → EXIF pre-selects Breakfast → L3 verified → visible with badge
 - U4 · Visitor browses everything; first save prompts sign-in (never before)
 - U5 · Member crosses 30 recs / 10 photos / trust 70 → Apply button appears → owner approves → badge live
+- U6 · Searches the People tab for a known local food blogger's handle → finds them → follows → their recs now surface first in feed layer 1 (§11.6)
+- U7 · Blocks an account that's harassing them in [Phase 2] replies (once D8 is resolved) or just makes them uncomfortable → that account's content silently vanishes from their feed/search, no notification sent either way
+- U8 · Gets a "tier-up" notification → taps it → deep-links straight to their own profile showing the new badge
 
 **Edge cases (every one must have a designed behavior, not an accident):**
 - E1 Location denied → State B manual selection, no nagging re-prompts
@@ -519,6 +562,7 @@ Taste Graph ("92% taste match with people like you") · pairwise in-bucket compa
 - E8 Author's trust collapses after posting → old recs keep trustSnapshot (stability); fraud takedown is the only retroactive event
 - E9 Same-device account farm → fingerprint match → review queue before any post goes live
 - E10 Offline/poor network → cached last feed + clear retry states; post drafts persist locally
+- E11 Blocked user tries to view the blocker's public profile directly by URL → profile loads normally (blocking hides *feed/search* surfacing, not a hard wall — avoids a "you've been blocked" reveal, which itself can escalate harassment)
 
 ## 19. Non-Functional Standards
 
@@ -539,7 +583,8 @@ Taste Graph ("92% taste match with people like you") · pairwise in-bucket compa
 | D5 | Budget band thresholds (₹) | e.g. <300 / 300–800 / 800+ | <300 / 300–800 / 800+ per person |
 | D6 | Restaurant Owner claim verification method (§7.2) | Phone match to Google Business / document upload / deposit-refund | Blocked — must choose before Phase 2 owner claims ship |
 | D7 | Negative-feedback report threshold before ranking suppression kicks in (§11.7) | e.g. 3 / 5 / 10 independent reports | Blocked — must choose before Phase 2 feedback loop ships |
+| D8 | Comments/replies on recommendations (§6.1) | No comments in MVP / one scoped author-only reply, not a thread | No comments — simplest, most on-brand, don't build `comments` collection until decided |
 
 ---
 
-*End of Master Build Document v1.2. Every line above is subject to owner revision. Claude Code: build Phase 0 first, confirm exit criteria, then request approval to proceed.*
+*End of Master Build Document v1.3. Every line above is subject to owner revision. Claude Code: build Phase 0 first, confirm exit criteria, then request approval to proceed.*
