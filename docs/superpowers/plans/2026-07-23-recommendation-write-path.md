@@ -620,6 +620,13 @@ git add functions/src/types.ts functions/src/store.ts functions/src/testStore.ts
 git commit -m "Add Store interface, Firestore-backed implementation, and in-memory test fake"
 ```
 
+**Correction (found in Task 3's review, fixed immediately after):** the code above has two latent defects that only a careful review catches, since the test suite only ever exercises `createTestStore()`'s fake, never `FirestoreStore` directly.
+
+1. `RecommendationRecord.createdAt` is typed `number`, but `FirestoreStore.createRecommendation` writes `FieldValue.serverTimestamp()` and `getRecommendation` read it back through an unchecked cast — at runtime that's a Firestore `Timestamp` object, not a `number`. Fixed by having `getRecommendation` (and `getRestaurant`, same issue) explicitly convert via `(data.createdAt as Timestamp).toMillis()` before returning, so the real implementation actually satisfies the type it claims to, not just the fake.
+2. `FirestoreStore.createRecommendation` writes a `status: "active"` field, and `createRestaurant` writes `createdBy`/`createdAt`, none of which existed on `RecommendationRecord`/`RestaurantRecord`. Added `status: string` to `RecommendationRecord` and `createdBy: string` + `createdAt: number` to `RestaurantRecord`, with both `FirestoreStore` and the in-memory fake populating them identically.
+
+If executing this plan fresh, write the corrected version directly rather than the version above, then applying this note as a second pass.
+
 ---
 
 ## Task 4: `createRecommendation` handler
