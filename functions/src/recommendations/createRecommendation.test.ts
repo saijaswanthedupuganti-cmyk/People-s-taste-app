@@ -193,6 +193,30 @@ describe("createRecommendationHandler", () => {
     ).rejects.toThrow(/caption/i);
   });
 
+  it("rejects a communityPlace with invalid (NaN) location coordinates", async () => {
+    const { store } = createTestStore();
+
+    await expect(
+      createRecommendationHandler(
+        {
+          authorId: "u1",
+          communityPlace: {
+            name: "Nimrah Cafe",
+            location: { lat: NaN, lng: 78.47 },
+            area: "Charminar",
+            city: "Hyderabad",
+          },
+          dishName: "Osmania Biscuit",
+          mealTags: ["cafe"],
+          signalTags: [],
+          primarySignal: "recommend",
+          caption: "Come after Charminar closes, sit outside.",
+        },
+        store,
+      ),
+    ).rejects.toThrow(/location/i);
+  });
+
   it("rejects when neither restaurantId nor communityPlace is given", async () => {
     const { store } = createTestStore();
 

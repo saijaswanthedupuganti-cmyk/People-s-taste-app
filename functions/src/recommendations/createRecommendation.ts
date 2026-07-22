@@ -49,6 +49,14 @@ export async function createRecommendationHandler(
     restaurantId = restaurant.id;
     restaurantLocation = restaurant.location;
   } else if (input.communityPlace) {
+    if (
+      !input.communityPlace.location ||
+      !Number.isFinite(input.communityPlace.location.lat) ||
+      !Number.isFinite(input.communityPlace.location.lng)
+    ) {
+      throw new Error("communityPlace.location must include valid lat/lng coordinates");
+    }
+
     const nearby = await store.findNearbyRestaurants(
       input.communityPlace.location.lat,
       input.communityPlace.location.lng,
