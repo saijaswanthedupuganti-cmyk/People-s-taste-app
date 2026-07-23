@@ -3,8 +3,10 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import type {
   NewRecommendationInput,
   NewRestaurantInput,
+  NewUserInput,
   RecommendationRecord,
   RestaurantRecord,
+  UserRecord,
   VoteRecord,
 } from "./types.js";
 
@@ -22,6 +24,8 @@ export interface Store {
   createVote(recId: string, voterUid: string, weight: number): Promise<void>;
   deleteVote(recId: string, voterUid: string): Promise<void>;
   applyHelpfulDelta(recId: string, weightedHelpfulDelta: number, voteCountDelta: number): Promise<void>;
+  getUser(id: string): Promise<UserRecord | null>;
+  createUser(input: NewUserInput): Promise<void>;
 }
 
 // Real Firestore-backed implementation. Deliberately thin - every method is a
@@ -145,6 +149,31 @@ export class FirestoreStore implements Store {
     await this.db.collection("recommendations").doc(recId).update({
       weightedHelpful: FieldValue.increment(weightedHelpfulDelta),
       helpfulVoteCount: FieldValue.increment(voteCountDelta),
+    });
+  }
+
+  async getUser(id: string): Promise<UserRecord | null> {
+    const doc = await this.db.collection("users").doc(id).get();
+    if (!doc.exists) return null;
+    const data = doc.data()!;
+    return {
+      id: doc.id,
+      ...(data as Omit<UserRecord, "id" | "createdAt">),
+      createdAt: (data.createdAt as Timestamp).toMillis(),
+    };
+  }
+
+  async createUser(input: NewUserInput): Promise<void> {
+    await this.db.collection("users").doc(input.id).set({
+      username: input.username,
+      displayName: input.displayName,
+      photoURL: input.photoURL,
+      tier: "explorer",
+      trustScore: 10,
+      recCount: 0,
+      verifiedRecCount: 0,
+      weightedHelpfulReceived: 0,
+      createdAt: FieldValue.serverTimestamp(),
     });
   }
 }

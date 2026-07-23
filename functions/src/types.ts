@@ -50,3 +50,25 @@ export interface NewRecommendationInput {
 export interface VoteRecord {
   weight: number;
 }
+
+export type Tier = "explorer" | "local_foodie" | "verified_foodie" | "neighborhood_expert" | "city_expert" | "legend";
+
+export interface UserRecord {
+  id: string;
+  username: string;
+  displayName: string;
+  photoURL: string;
+  tier: Tier;
+  trustScore: number;
+  recCount: number;
+  verifiedRecCount: number;
+  weightedHelpfulReceived: number;
+  createdAt: number;
+}
+
+export interface NewUserInput {
+  id: string;
+  username: string;
+  displayName: string;
+  photoURL: string;
+}

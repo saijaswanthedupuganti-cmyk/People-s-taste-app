@@ -1,8 +1,10 @@
 import type {
   NewRecommendationInput,
   NewRestaurantInput,
+  NewUserInput,
   RecommendationRecord,
   RestaurantRecord,
+  UserRecord,
   VoteRecord,
 } from "./types.js";
 import type { Store } from "./store.js";
@@ -17,6 +19,7 @@ export function createTestStore() {
   const recommendations = new Map<string, RecommendationRecord>();
   const saves = new Set<string>();
   const votes = new Map<string, VoteRecord>(); // key: `${recId}_${voterUid}`
+  const users = new Map<string, UserRecord>();
 
   const store: Store = {
     async getRestaurant(id) {
@@ -91,7 +94,24 @@ export function createTestStore() {
       rec.weightedHelpful += weightedHelpfulDelta;
       rec.helpfulVoteCount += voteCountDelta;
     },
+    async getUser(id) {
+      return users.get(id) ?? null;
+    },
+    async createUser(input: NewUserInput) {
+      users.set(input.id, {
+        id: input.id,
+        username: input.username,
+        displayName: input.displayName,
+        photoURL: input.photoURL,
+        tier: "explorer",
+        trustScore: 10,
+        recCount: 0,
+        verifiedRecCount: 0,
+        weightedHelpfulReceived: 0,
+        createdAt: Date.now(),
+      });
+    },
   };
 
-  return { store, restaurants, recommendations };
+  return { store, restaurants, recommendations, users };
 }

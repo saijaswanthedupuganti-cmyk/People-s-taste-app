@@ -4,6 +4,7 @@ import { FirestoreStore } from "./store.js";
 import { createRecommendationHandler, type CreateRecommendationInput } from "./recommendations/createRecommendation.js";
 import { toggleHelpfulVoteHandler } from "./recommendations/toggleHelpfulVote.js";
 import { toggleSaveHandler } from "./saves/toggleSave.js";
+import { ensureUserProfileHandler } from "./users/ensureUserProfile.js";
 
 const store = new FirestoreStore(db);
 
@@ -33,4 +34,10 @@ export const toggleHelpfulVote = onCall({ region: "asia-south1" }, async (reques
   } catch (err) {
     throw new HttpsError("not-found", err instanceof Error ? err.message : "Not found");
   }
+});
+
+export const ensureUserProfile = onCall({ region: "asia-south1" }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Login required");
+  const { displayName, photoURL, email } = request.data as { displayName: string; photoURL: string; email: string };
+  return ensureUserProfileHandler({ uid: request.auth.uid, displayName, photoURL, email }, store);
 });
