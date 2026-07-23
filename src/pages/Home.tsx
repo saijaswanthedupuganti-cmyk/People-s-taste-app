@@ -3,7 +3,8 @@ import AreaMealHeader from "../components/AreaMealHeader";
 import LocationSheet from "../components/LocationSheet";
 import FilterChips from "../components/FilterChips";
 import RecommendationCard from "../components/RecommendationCard";
-import { MOCK_FEED } from "../data/mockData";
+import { fetchFeed } from "../lib/queries";
+import type { Recommendation } from "../types";
 import { currentMealWindow } from "../lib/mealWindow";
 import { requestLocation } from "../lib/geo";
 import { SIGNAL_LABEL } from "../types";
@@ -19,6 +20,14 @@ export default function Home() {
   const [meal, setMeal] = useState<MealTag>(currentMealWindow());
   const [activeSignals, setActiveSignals] = useState<Set<string>>(new Set());
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [feed, setFeed] = useState<Recommendation[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchFeed()
+      .then(setFeed)
+      .finally(() => setLoading(false));
+  }, []);
 
   // §11.3 (locked): GPS captured on app open. §E1 (locked): denied -> manual fallback,
   // no nagging re-prompts. So we auto-ask exactly once, ever, per browser — after that,
@@ -45,21 +54,21 @@ export default function Home() {
 
   const strictResults = useMemo(
     () =>
-      MOCK_FEED.filter((rec) => {
+      feed.filter((rec) => {
         const areaMatch = rec.restaurant.area === area;
         const mealMatch = rec.mealTags.includes(meal);
         const signalMatch = activeSignals.size === 0 || rec.signalTags.some((t) => activeSignals.has(t));
         return areaMatch && mealMatch && signalMatch;
       }),
-    [area, meal, activeSignals],
+    [feed, area, meal, activeSignals],
   );
 
   // Empty-state ladder (§12), simplified for Phase 1 UI: area falls back to whole-city
   // before we have real leaderboards/adjacent-area logic to fall back through properly.
   const showingFallback = strictResults.length === 0;
   const fallbackResults = useMemo(
-    () => MOCK_FEED.filter((rec) => activeSignals.size === 0 || rec.signalTags.some((t) => activeSignals.has(t))),
-    [activeSignals],
+    () => feed.filter((rec) => activeSignals.size === 0 || rec.signalTags.some((t) => activeSignals.has(t))),
+    [feed, activeSignals],
   );
   const results = showingFallback ? fallbackResults : strictResults;
 
@@ -88,12 +97,13 @@ export default function Home() {
         </div>
 
         <div className="space-y-4 px-4 py-4">
+          {loading && <p className="py-10 text-center text-sm text-pt-ink-soft">Loading recommendations…</p>}
           {showingFallback && (
             <p className="rounded-xl bg-pt-surface-2 px-4 py-3 text-sm text-pt-ink-soft">
               No recs for {area} at this hour yet — showing all of Hyderabad instead.
             </p>
           )}
-          {results.length === 0 && (
+          {!loading && results.length === 0 && (
             <div className="rounded-2xl border border-dashed border-pt-border px-4 py-10 text-center">
               <p className="font-display text-lg font-semibold text-pt-ink">Be the first foodie to put this on the map</p>
               <p className="mt-1 text-sm text-pt-ink-soft">No one's posted here yet. Your recommendation could be the first.</p>
