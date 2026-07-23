@@ -111,6 +111,23 @@ export function createTestStore() {
         createdAt: Date.now(),
       });
     },
+    async incrementUserRecCount(id, verified) {
+      const u = users.get(id);
+      if (!u) return;
+      u.recCount += 1;
+      if (verified) u.verifiedRecCount += 1;
+    },
+    async applyHelpfulReceivedDelta(id, delta) {
+      const u = users.get(id);
+      if (!u) return;
+      u.weightedHelpfulReceived += delta;
+    },
+    async updateUserTrust(id, trustScore, tier) {
+      const u = users.get(id);
+      if (!u) return;
+      u.trustScore = trustScore;
+      u.tier = tier;
+    },
   };
 
   return { store, restaurants, recommendations, users };

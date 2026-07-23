@@ -6,6 +6,7 @@ import type {
   NewUserInput,
   RecommendationRecord,
   RestaurantRecord,
+  Tier,
   UserRecord,
   VoteRecord,
 } from "./types.js";
@@ -26,6 +27,9 @@ export interface Store {
   applyHelpfulDelta(recId: string, weightedHelpfulDelta: number, voteCountDelta: number): Promise<void>;
   getUser(id: string): Promise<UserRecord | null>;
   createUser(input: NewUserInput): Promise<void>;
+  incrementUserRecCount(id: string, verified: boolean): Promise<void>;
+  applyHelpfulReceivedDelta(id: string, delta: number): Promise<void>;
+  updateUserTrust(id: string, trustScore: number, tier: Tier): Promise<void>;
 }
 
 // Real Firestore-backed implementation. Deliberately thin - every method is a
@@ -175,5 +179,21 @@ export class FirestoreStore implements Store {
       weightedHelpfulReceived: 0,
       createdAt: FieldValue.serverTimestamp(),
     });
+  }
+
+  async incrementUserRecCount(id: string, verified: boolean): Promise<void> {
+    const update: Record<string, FieldValue> = { recCount: FieldValue.increment(1) };
+    if (verified) update.verifiedRecCount = FieldValue.increment(1);
+    await this.db.collection("users").doc(id).update(update);
+  }
+
+  async applyHelpfulReceivedDelta(id: string, delta: number): Promise<void> {
+    await this.db.collection("users").doc(id).update({
+      weightedHelpfulReceived: FieldValue.increment(delta),
+    });
+  }
+
+  async updateUserTrust(id: string, trustScore: number, tier: Tier): Promise<void> {
+    await this.db.collection("users").doc(id).update({ trustScore, tier });
   }
 }
