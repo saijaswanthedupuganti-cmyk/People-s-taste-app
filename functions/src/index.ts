@@ -30,7 +30,7 @@ export const toggleHelpfulVote = onCall({ region: "asia-south1" }, async (reques
   const { recId } = request.data as { recId: string };
   if (!recId) throw new HttpsError("invalid-argument", "recId is required");
   try {
-    return await toggleHelpfulVoteHandler(recId, request.auth.uid, store);
+    return await toggleHelpfulVoteHandler(recId, request.auth.uid, store, Date.now());
   } catch (err) {
     throw new HttpsError("not-found", err instanceof Error ? err.message : "Not found");
   }
