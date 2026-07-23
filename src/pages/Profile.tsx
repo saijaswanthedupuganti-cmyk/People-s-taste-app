@@ -1,17 +1,60 @@
+import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
+import { collection, doc, getCountFromServer, getDoc, query, where } from "firebase/firestore";
+import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import TrustBadge from "../components/TrustBadge";
 import { TIER_LABEL } from "../types";
 import type { Tier } from "../types";
 
-// Placeholder until the Phase 1 trust engine Cloud Function is live (§9).
-const MOCK_OWN_TRUST = { tier: "explorer" as Tier, tierProgress: 12, recCount: 0, savedCount: 0 };
+interface OwnTrust {
+  tier: Tier;
+  trustScore: number;
+  recCount: number;
+  savedCount: number;
+}
+
+const TIER_MIN_SCORE: Record<Tier, number> = {
+  explorer: 0,
+  local_foodie: 20,
+  verified_foodie: 35,
+  neighborhood_expert: 50,
+  city_expert: 65,
+  legend: 80,
+};
 
 const TIER_ORDER: Tier[] = ["explorer", "local_foodie", "verified_foodie", "neighborhood_expert", "city_expert", "legend"];
 
 export default function Profile() {
   const { user, logOut } = useAuth();
-  const nextTier = TIER_ORDER[TIER_ORDER.indexOf(MOCK_OWN_TRUST.tier) + 1];
+  const [trust, setTrust] = useState<OwnTrust | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    Promise.all([
+      getDoc(doc(db, "users", user.uid)),
+      getCountFromServer(query(collection(db, "saves"), where("uid", "==", user.uid))),
+    ]).then(([userSnap, savesCount]) => {
+      const data = userSnap.data() as { tier: Tier; trustScore: number; recCount: number } | undefined;
+      setTrust({
+        tier: data?.tier ?? "explorer",
+        trustScore: data?.trustScore ?? 10,
+        recCount: data?.recCount ?? 0,
+        savedCount: savesCount.data().count,
+      });
+    });
+  }, [user]);
+
+  if (!trust) {
+    return <div className="px-4 py-10 text-center text-pt-ink-soft">Loading…</div>;
+  }
+
+  const nextTier = TIER_ORDER[TIER_ORDER.indexOf(trust.tier) + 1];
+  const tierProgress = nextTier
+    ? Math.round(
+        ((trust.trustScore - TIER_MIN_SCORE[trust.tier]) / (TIER_MIN_SCORE[nextTier] - TIER_MIN_SCORE[trust.tier])) * 100,
+      )
+    : 100;
 
   return (
     <div className="pb-24 md:pb-8">
@@ -28,7 +71,7 @@ export default function Profile() {
             <h1 className="truncate font-display text-xl font-semibold text-pt-ink">
               {user?.displayName ?? user?.email}
             </h1>
-            <TrustBadge tier={MOCK_OWN_TRUST.tier} className="mt-1" />
+            <TrustBadge tier={trust.tier} className="mt-1" />
           </div>
         </div>
 
@@ -36,12 +79,12 @@ export default function Profile() {
           <div className="mt-5 rounded-2xl border border-pt-border bg-white p-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-pt-ink-soft">Progress to {TIER_LABEL[nextTier]}</span>
-              <span className="font-medium text-pt-ink">{MOCK_OWN_TRUST.tierProgress}%</span>
+              <span className="font-medium text-pt-ink">{tierProgress}%</span>
             </div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-pt-surface-3">
               <div
                 className="h-full rounded-full bg-pt-primary transition-[width] duration-300"
-                style={{ width: `${MOCK_OWN_TRUST.tierProgress}%` }}
+                style={{ width: `${tierProgress}%` }}
               />
             </div>
           </div>
@@ -49,16 +92,16 @@ export default function Profile() {
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div className="rounded-2xl border border-pt-border bg-white p-4 text-center">
-            <p className="font-display text-2xl font-semibold text-pt-ink">{MOCK_OWN_TRUST.recCount}</p>
+            <p className="font-display text-2xl font-semibold text-pt-ink">{trust.recCount}</p>
             <p className="text-sm text-pt-ink-soft">Recommendations</p>
           </div>
           <div className="rounded-2xl border border-pt-border bg-white p-4 text-center">
-            <p className="font-display text-2xl font-semibold text-pt-ink">{MOCK_OWN_TRUST.savedCount}</p>
+            <p className="font-display text-2xl font-semibold text-pt-ink">{trust.savedCount}</p>
             <p className="text-sm text-pt-ink-soft">Saved</p>
           </div>
         </div>
 
-        {MOCK_OWN_TRUST.recCount === 0 && (
+        {trust.recCount === 0 && (
           <div className="mt-6 rounded-2xl border border-dashed border-pt-border px-4 py-8 text-center">
             <p className="font-medium text-pt-ink">No recommendations yet</p>
             <p className="mt-1 text-sm text-pt-ink-soft">Post your first one to start building trust.</p>
