@@ -7,6 +7,8 @@ import { MEAL_LABEL, SIGNAL_LABEL } from "../types";
 import TrustBadge from "../components/TrustBadge";
 import VerificationBadge from "../components/VerificationBadge";
 import PhotoPlaceholder from "../components/PhotoPlaceholder";
+import { useHelpfulVote } from "../hooks/useHelpfulVote";
+import { useSave } from "../hooks/useSave";
 
 function initials(name: string) {
   return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
@@ -43,8 +45,8 @@ export default function RecommendationDetail() {
 
 function RecommendationDetailContent({ rec }: { rec: Recommendation }) {
   const navigate = useNavigate();
-  const [voted, setVoted] = useState(false);
-  const [helpfulCount, setHelpfulCount] = useState(rec.helpfulVoteCount);
+  const { voted, count: helpfulCount, toggle: toggleHelpful, signedIn } = useHelpfulVote(rec.id, rec.helpfulVoteCount);
+  const { saved, toggle: toggleSave, signedIn: canSave } = useSave(rec.id);
 
   const isMustTry = rec.primarySignal === "must_try";
 
@@ -124,10 +126,7 @@ function RecommendationDetailContent({ rec }: { rec: Recommendation }) {
           <div className="mt-6 flex items-center gap-3 border-t border-pt-border pt-4">
             <button
               type="button"
-              onClick={() => {
-                setVoted((v) => !v);
-                setHelpfulCount((c) => c + (voted ? -1 : 1));
-              }}
+              onClick={() => (signedIn ? toggleHelpful() : navigate("/login"))}
               aria-pressed={voted}
               className={`flex min-h-[44px] cursor-pointer items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors duration-150 ${
                 voted
@@ -141,10 +140,14 @@ function RecommendationDetailContent({ rec }: { rec: Recommendation }) {
             <span className="text-sm text-pt-ink-soft">{helpfulCount} found this helpful</span>
             <button
               type="button"
-              aria-label="Save recommendation"
-              className="ml-auto flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-pt-ink-soft transition-colors duration-150 hover:bg-pt-surface-2 hover:text-pt-primary"
+              aria-label={saved ? "Remove from saved" : "Save recommendation"}
+              aria-pressed={saved}
+              onClick={() => (canSave ? toggleSave() : navigate("/login"))}
+              className={`ml-auto flex h-11 w-11 cursor-pointer items-center justify-center rounded-full transition-colors duration-150 hover:bg-pt-surface-2 ${
+                saved ? "text-pt-primary" : "text-pt-ink-soft hover:text-pt-primary"
+              }`}
             >
-              <Bookmark className="h-5 w-5" aria-hidden="true" strokeWidth={1.75} />
+              <Bookmark className="h-5 w-5" aria-hidden="true" strokeWidth={1.75} fill={saved ? "currentColor" : "none"} />
             </button>
           </div>
         </div>
