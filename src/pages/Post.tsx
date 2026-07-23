@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Check, Flame, MapPinPlus, Search, ThumbsUp } from "lucide-react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
-import { MOCK_RESTAURANTS } from "../data/mockData";
+import { fetchRestaurants } from "../lib/queries";
 import { MEAL_LABEL, SIGNAL_LABEL } from "../types";
 import type { MealTag, PrimarySignal, Restaurant, SignalTag } from "../types";
 
@@ -52,10 +52,15 @@ export default function Post() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [result, setResult] = useState<{ verificationLevel: number } | null>(null);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+
+  useEffect(() => {
+    fetchRestaurants().then(setRestaurants);
+  }, []);
 
   const placeMatches = placeQuery.trim()
-    ? MOCK_RESTAURANTS.filter((r) => r.name.toLowerCase().includes(placeQuery.trim().toLowerCase()))
-    : MOCK_RESTAURANTS;
+    ? restaurants.filter((r) => r.name.toLowerCase().includes(placeQuery.trim().toLowerCase()))
+    : restaurants;
 
   const hasPlace = restaurant || (wantsCommunityPlace && communityName.trim().length > 1);
   const canProceed = [
@@ -125,11 +130,7 @@ export default function Post() {
       setSubmitted(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong";
-      setSubmitError(
-        message.includes("restaurant not found")
-          ? "This demo restaurant isn't in the real database yet — try \"Add this place manually\" instead."
-          : message,
-      );
+      setSubmitError(message);
     } finally {
       setSubmitting(false);
     }
