@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search as SearchIcon, X } from "lucide-react";
-import { MOCK_FEED, MOCK_RESTAURANTS } from "../data/mockData";
+import { fetchFeed, fetchRestaurants } from "../lib/queries";
+import type { Recommendation, Restaurant } from "../types";
 import RecommendationCard from "../components/RecommendationCard";
 import FilterChips from "../components/FilterChips";
 import TrustBadge from "../components/TrustBadge";
@@ -12,36 +13,46 @@ type Tab = "dishes" | "places" | "people";
 
 const MEAL_FILTERS: MealTag[] = ["breakfast", "lunch", "dinner", "late_night"];
 
-const MOCK_PEOPLE = Array.from(new Map(MOCK_FEED.map((r) => [r.author.username, r.author])).values());
-
 export default function Search() {
   const [tab, setTab] = useState<Tab>("dishes");
   const [query, setQuery] = useState("");
   const [meals, setMeals] = useState<Set<string>>(new Set());
+  const [feed, setFeed] = useState<Recommendation[]>([]);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+
+  useEffect(() => {
+    fetchFeed().then(setFeed);
+    fetchRestaurants().then(setRestaurants);
+  }, []);
+
+  const people = useMemo(
+    () => [...new Map(feed.map((r) => [r.author.username, r.author])).values()],
+    [feed],
+  );
 
   const q = query.trim().toLowerCase();
 
   const dishResults = useMemo(
     () =>
-      MOCK_FEED.filter((rec) => {
+      feed.filter((rec) => {
         const matchesQuery = !q || rec.dishName?.toLowerCase().includes(q) || rec.caption.toLowerCase().includes(q);
         const matchesMeal = meals.size === 0 || rec.mealTags.some((m) => meals.has(m));
         return matchesQuery && matchesMeal;
       }),
-    [q, meals],
+    [q, meals, feed],
   );
 
   const placeResults = useMemo(
-    () => MOCK_RESTAURANTS.filter((r) => !q || r.name.toLowerCase().includes(q) || r.area.toLowerCase().includes(q)),
-    [q],
+    () => restaurants.filter((r) => !q || r.name.toLowerCase().includes(q) || r.area.toLowerCase().includes(q)),
+    [q, restaurants],
   );
 
   const peopleResults = useMemo(
     () =>
-      MOCK_PEOPLE.filter(
+      people.filter(
         (p) => !q || p.username.toLowerCase().includes(q) || p.displayName.toLowerCase().includes(q),
       ),
-    [q],
+    [q, people],
   );
 
   return (
