@@ -1,18 +1,42 @@
 import { ArrowLeft } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { MOCK_FEED } from "../data/mockData";
+import { fetchUserByUsername, fetchRecommendationsByAuthor } from "../lib/queries";
+import type { Author, Recommendation } from "../types";
 import RecommendationCard from "../components/RecommendationCard";
 import TrustBadge from "../components/TrustBadge";
 
 export default function PublicProfile() {
   const { username } = useParams();
   const navigate = useNavigate();
-  const recs = MOCK_FEED.filter((r) => r.author.username === username);
-  const author = recs[0]?.author;
+
+  const [author, setAuthor] = useState<Author | null>(null);
+  const [recs, setRecs] = useState<Recommendation[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!username) return;
+    setLoading(true);
+    fetchUserByUsername(username).then(async (result) => {
+      if (!result) {
+        setAuthor(null);
+        setLoading(false);
+        return;
+      }
+      const recList = await fetchRecommendationsByAuthor(result.uid);
+      setAuthor({ uid: result.uid, ...result.profile });
+      setRecs(recList);
+      setLoading(false);
+    });
+  }, [username]);
+
   const areas = [...new Set(recs.map((r) => r.restaurant.area))];
 
-  if (!author) {
+  if (!loading && !author) {
     return <div className="px-4 py-10 text-center text-pt-ink-soft">User not found.</div>;
+  }
+  if (loading || !author) {
+    return <div className="px-4 py-10 text-center text-pt-ink-soft">Loading…</div>;
   }
 
   return (
