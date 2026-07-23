@@ -1,10 +1,11 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Bookmark, Flame, ThumbsUp } from "lucide-react";
 import type { Recommendation } from "../types";
 import { MEAL_LABEL } from "../types";
 import TrustBadge from "./TrustBadge";
 import VerificationBadge from "./VerificationBadge";
 import PhotoPlaceholder from "./PhotoPlaceholder";
+import { useSave } from "../hooks/useSave";
 
 function initials(name: string) {
   return name
@@ -17,6 +18,8 @@ function initials(name: string) {
 
 export default function RecommendationCard({ rec }: { rec: Recommendation }) {
   const isMustTry = rec.primarySignal === "must_try";
+  const navigate = useNavigate();
+  const { saved, toggle, signedIn } = useSave(rec.id);
 
   return (
     <article className="overflow-hidden rounded-2xl border border-pt-border bg-white shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
@@ -77,10 +80,14 @@ export default function RecommendationCard({ rec }: { rec: Recommendation }) {
           <VerificationBadge level={rec.verificationLevel} />
           <button
             type="button"
-            aria-label="Save recommendation"
-            className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-pt-ink-soft transition-colors duration-150 hover:bg-pt-surface-2 hover:text-pt-primary"
+            aria-label={saved ? "Remove from saved" : "Save recommendation"}
+            aria-pressed={saved}
+            onClick={() => (signedIn ? toggle() : navigate("/login"))}
+            className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-full transition-colors duration-150 hover:bg-pt-surface-2 ${
+              saved ? "text-pt-primary" : "text-pt-ink-soft hover:text-pt-primary"
+            }`}
           >
-            <Bookmark className="h-5 w-5" aria-hidden="true" strokeWidth={1.75} />
+            <Bookmark className="h-5 w-5" aria-hidden="true" strokeWidth={1.75} fill={saved ? "currentColor" : "none"} />
           </button>
         </div>
       </div>
