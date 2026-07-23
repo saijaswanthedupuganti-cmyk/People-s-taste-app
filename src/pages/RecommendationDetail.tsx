@@ -14,7 +14,6 @@ function initials(name: string) {
 
 export default function RecommendationDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [rec, setRec] = useState<Recommendation | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,8 +38,13 @@ export default function RecommendationDetail() {
     );
   }
 
+  return <RecommendationDetailContent rec={rec} />;
+}
+
+function RecommendationDetailContent({ rec }: { rec: Recommendation }) {
+  const navigate = useNavigate();
   const [voted, setVoted] = useState(false);
-  const [helpfulCount, setHelpfulCount] = useState(rec.helpfulVoteCount ?? 0);
+  const [helpfulCount, setHelpfulCount] = useState(rec.helpfulVoteCount);
 
   const isMustTry = rec.primarySignal === "must_try";
 
