@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Bookmark, ExternalLink, Flame, ThumbsUp } from "lucide-react";
-import { MOCK_FEED } from "../data/mockData";
+import { fetchRecommendation } from "../lib/queries";
+import type { Recommendation } from "../types";
 import { MEAL_LABEL, SIGNAL_LABEL } from "../types";
 import TrustBadge from "../components/TrustBadge";
 import VerificationBadge from "../components/VerificationBadge";
@@ -14,10 +15,24 @@ function initials(name: string) {
 export default function RecommendationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const rec = MOCK_FEED.find((r) => r.id === id);
+  const [rec, setRec] = useState<Recommendation | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    fetchRecommendation(id).then((r) => {
+      setRec(r);
+      setLoading(false);
+    });
+  }, [id]);
 
   const [voted, setVoted] = useState(false);
   const [helpfulCount, setHelpfulCount] = useState(rec?.helpfulVoteCount ?? 0);
+
+  if (loading) {
+    return <div className="px-4 py-10 text-center text-pt-ink-soft">Loading…</div>;
+  }
 
   if (!rec) {
     return (
