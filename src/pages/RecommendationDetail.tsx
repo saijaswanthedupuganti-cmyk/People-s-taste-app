@@ -27,9 +27,6 @@ export default function RecommendationDetail() {
     });
   }, [id]);
 
-  const [voted, setVoted] = useState(false);
-  const [helpfulCount, setHelpfulCount] = useState(rec?.helpfulVoteCount ?? 0);
-
   if (loading) {
     return <div className="px-4 py-10 text-center text-pt-ink-soft">Loading…</div>;
   }
@@ -41,6 +38,9 @@ export default function RecommendationDetail() {
       </div>
     );
   }
+
+  const [voted, setVoted] = useState(false);
+  const [helpfulCount, setHelpfulCount] = useState(rec.helpfulVoteCount ?? 0);
 
   const isMustTry = rec.primarySignal === "must_try";
 
