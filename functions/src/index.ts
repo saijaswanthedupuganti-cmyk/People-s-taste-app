@@ -39,5 +39,6 @@ export const toggleHelpfulVote = onCall({ region: "asia-south1" }, async (reques
 export const ensureUserProfile = onCall({ region: "asia-south1" }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Login required");
   const { displayName, photoURL, email } = request.data as { displayName: string; photoURL: string; email: string };
+  if (!email) throw new HttpsError("invalid-argument", "email is required");
   return ensureUserProfileHandler({ uid: request.auth.uid, displayName, photoURL, email }, store);
 });
