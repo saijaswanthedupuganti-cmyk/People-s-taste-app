@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { createTestStore } from "../testStore.js";
 import { createRecommendationHandler } from "./createRecommendation.js";
 
+const FIXED_NOW = new Date("2026-07-23T00:00:00Z").getTime();
+
 describe("createRecommendationHandler", () => {
   it("creates a recommendation against an existing restaurant", async () => {
-    const { store, restaurants } = createTestStore();
+    const { store, restaurants, users } = createTestStore();
     restaurants.set("r1", {
       id: "r1",
       name: "Shah Ghouse",
@@ -15,6 +17,18 @@ describe("createRecommendationHandler", () => {
       aggregates: { recCount: 0 },
       createdBy: "seed",
       createdAt: Date.now(),
+    });
+    users.set("u1", {
+      id: "u1",
+      username: "priyanka.eats",
+      displayName: "Priyanka R.",
+      photoURL: "",
+      tier: "explorer",
+      trustScore: 42,
+      recCount: 0,
+      verifiedRecCount: 0,
+      weightedHelpfulReceived: 0,
+      createdAt: FIXED_NOW,
     });
 
     const result = await createRecommendationHandler(
@@ -28,14 +42,16 @@ describe("createRecommendationHandler", () => {
         caption: "Order the mutton, not chicken.",
       },
       store,
+      FIXED_NOW,
     );
 
     expect(result.restaurantId).toBe("r1");
     expect(result.verificationLevel).toBe(1);
     const rec = await store.getRecommendation(result.recommendationId);
     expect(rec?.dishName).toBe("Mutton Biryani");
-    expect(rec?.trustSnapshot).toBe(10);
+    expect(rec?.trustSnapshot).toBe(42); // uses the author's real trust score, not a hardcoded default
     expect(restaurants.get("r1")?.aggregates.recCount).toBe(1);
+    expect(users.get("u1")?.recCount).toBe(1);
   });
 
   it("computes verification level 2 when GPS is within 100m of the restaurant", async () => {
@@ -64,6 +80,7 @@ describe("createRecommendationHandler", () => {
         userLocation: { lat: 17.3999, lng: 78.4118 },
       },
       store,
+      FIXED_NOW,
     );
 
     expect(result.verificationLevel).toBe(2);
@@ -95,6 +112,7 @@ describe("createRecommendationHandler", () => {
         userLocation: { lat: 17.4326, lng: 78.4071 }, // Jubilee Hills, ~5km away
       },
       store,
+      FIXED_NOW,
     );
 
     expect(result.verificationLevel).toBe(1);
@@ -119,6 +137,7 @@ describe("createRecommendationHandler", () => {
         caption: "Come after Charminar closes, sit outside.",
       },
       store,
+      FIXED_NOW,
     );
 
     expect(restaurants.size).toBe(1);
@@ -156,6 +175,7 @@ describe("createRecommendationHandler", () => {
         caption: "The chai alone is worth it.",
       },
       store,
+      FIXED_NOW,
     );
 
     expect(result.restaurantId).toBe("r1");
@@ -189,6 +209,7 @@ describe("createRecommendationHandler", () => {
           userLocation: undefined,
         },
         store,
+        FIXED_NOW,
       ),
     ).rejects.toThrow(/caption/i);
   });
@@ -213,6 +234,7 @@ describe("createRecommendationHandler", () => {
           caption: "Come after Charminar closes, sit outside.",
         },
         store,
+        FIXED_NOW,
       ),
     ).rejects.toThrow(/location/i);
   });
@@ -231,7 +253,40 @@ describe("createRecommendationHandler", () => {
           caption: "Great biryani here, really.",
         },
         store,
+        FIXED_NOW,
       ),
     ).rejects.toThrow(/restaurant/i);
+  });
+
+  it("falls back to trust score 10 when the author has no profile doc yet", async () => {
+    const { store, restaurants } = createTestStore();
+    restaurants.set("r1", {
+      id: "r1",
+      name: "Shah Ghouse",
+      source: "google",
+      location: { lat: 17.3999, lng: 78.4118 },
+      area: "Tolichowki",
+      city: "Hyderabad",
+      aggregates: { recCount: 0 },
+      createdBy: "seed",
+      createdAt: Date.now(),
+    });
+
+    const result = await createRecommendationHandler(
+      {
+        authorId: "no-profile-user",
+        restaurantId: "r1",
+        dishName: "Mutton Biryani",
+        mealTags: ["dinner"],
+        signalTags: [],
+        primarySignal: "recommend",
+        caption: "Great biryani here.",
+      },
+      store,
+      FIXED_NOW,
+    );
+
+    const rec = await store.getRecommendation(result.recommendationId);
+    expect(rec?.trustSnapshot).toBe(10);
   });
 });

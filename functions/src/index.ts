@@ -12,7 +12,7 @@ export const createRecommendation = onCall({ region: "asia-south1" }, async (req
   if (!request.auth) throw new HttpsError("unauthenticated", "Login required");
   const input = request.data as Omit<CreateRecommendationInput, "authorId">;
   try {
-    return await createRecommendationHandler({ ...input, authorId: request.auth.uid }, store);
+    return await createRecommendationHandler({ ...input, authorId: request.auth.uid }, store, Date.now());
   } catch (err) {
     throw new HttpsError("invalid-argument", err instanceof Error ? err.message : "Invalid request");
   }

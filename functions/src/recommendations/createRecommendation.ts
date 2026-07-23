@@ -1,9 +1,6 @@
 import type { Store } from "../store.js";
 import { haversineMeters } from "../geo.js";
-
-// Trust engine (master doc §9) isn't built yet. Every user's effective trust
-// defaults to the documented base score until it is - see Global Constraints.
-const MVP_DEFAULT_TRUST = 10;
+import { computeTrust } from "../trust.js";
 
 const GPS_VERIFICATION_RADIUS_METERS = 100;
 const COMMUNITY_PLACE_DEDUPE_RADIUS_METERS = 150;
@@ -34,6 +31,7 @@ export interface CreateRecommendationResult {
 export async function createRecommendationHandler(
   input: CreateRecommendationInput,
   store: Store,
+  now: number,
 ): Promise<CreateRecommendationResult> {
   const caption = input.caption.trim();
   if (caption.length < 10 || caption.length > 500) {
@@ -100,6 +98,9 @@ export async function createRecommendationHandler(
     if (distance <= GPS_VERIFICATION_RADIUS_METERS) verificationLevel = 2;
   }
 
+  const author = await store.getUser(input.authorId);
+  const trustSnapshot = author?.trustScore ?? 10;
+
   const recommendationId = await store.createRecommendation({
     authorId: input.authorId,
     restaurantId,
@@ -109,10 +110,23 @@ export async function createRecommendationHandler(
     primarySignal: input.primarySignal,
     caption,
     verificationLevel,
-    trustSnapshot: MVP_DEFAULT_TRUST,
+    trustSnapshot,
   });
 
   await store.incrementRestaurantRecCount(restaurantId);
+
+  if (author) {
+    await store.incrementUserRecCount(input.authorId, verificationLevel === 2);
+    const updatedAuthor = await store.getUser(input.authorId);
+    const { score, tier } = computeTrust({
+      accountCreatedAt: updatedAuthor!.createdAt,
+      now,
+      recCount: updatedAuthor!.recCount,
+      verifiedRecCount: updatedAuthor!.verifiedRecCount,
+      weightedHelpfulReceived: updatedAuthor!.weightedHelpfulReceived,
+    });
+    await store.updateUserTrust(input.authorId, score, tier);
+  }
 
   return { recommendationId, restaurantId, verificationLevel };
 }
