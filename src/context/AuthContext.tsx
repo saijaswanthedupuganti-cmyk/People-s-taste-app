@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { onAuthStateChanged, signInWithPopup, signOut, type User } from "firebase/auth";
-import { auth, googleProvider } from "../lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { auth, functions, googleProvider } from "../lib/firebase";
 
 type AuthContextValue = {
   user: User | null;
@@ -19,6 +20,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser);
       setLoading(false);
+      if (nextUser) {
+        const ensureUserProfile = httpsCallable(functions, "ensureUserProfile");
+        ensureUserProfile({
+          displayName: nextUser.displayName ?? "",
+          photoURL: nextUser.photoURL ?? "",
+          email: nextUser.email ?? "",
+        }).catch((err) => console.error("ensureUserProfile failed", err));
+      }
     });
   }, []);
 
