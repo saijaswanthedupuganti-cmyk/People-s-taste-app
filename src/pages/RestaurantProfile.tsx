@@ -1,6 +1,8 @@
 import { ArrowLeft, ExternalLink } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { MOCK_FEED, MOCK_RESTAURANTS } from "../data/mockData";
+import { fetchRestaurantById, fetchRecommendationsForRestaurant } from "../lib/queries";
+import type { Recommendation, Restaurant } from "../types";
 import RecommendationCard from "../components/RecommendationCard";
 
 const PRICE_LABEL: Record<number, string> = { 1: "₹", 2: "₹₹", 3: "₹₹₹" };
@@ -8,11 +10,25 @@ const PRICE_LABEL: Record<number, string> = { 1: "₹", 2: "₹₹", 3: "₹₹�
 export default function RestaurantProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const restaurant = MOCK_RESTAURANTS.find((r) => r.id === id);
-  const recs = MOCK_FEED.filter((r) => r.restaurant.id === id);
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [recs, setRecs] = useState<Recommendation[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!restaurant) {
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    Promise.all([fetchRestaurantById(id), fetchRecommendationsForRestaurant(id)]).then(([r, recList]) => {
+      setRestaurant(r);
+      setRecs(recList);
+      setLoading(false);
+    });
+  }, [id]);
+
+  if (!loading && !restaurant) {
     return <div className="px-4 py-10 text-center text-pt-ink-soft">Place not found.</div>;
+  }
+  if (loading || !restaurant) {
+    return <div className="px-4 py-10 text-center text-pt-ink-soft">Loading…</div>;
   }
 
   return (
