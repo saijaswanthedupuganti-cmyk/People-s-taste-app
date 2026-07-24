@@ -69,7 +69,7 @@ Redesigned structure for `RecommendationCard.tsx`, reused conceptually (larger s
 Consistent, not ad-hoc per screen:
 
 - **Must-Try:** filled pill, `pt-primary` background, white text.
-- **Recommend:** outline pill, `pt-primary` border/text, transparent background.
+- **Recommend:** outline pill, `pt-primary` border/text, transparent background — except when the badge floats on top of an image (e.g. the feed card thumbnail), where transparent would be unreadable against an unpredictable future photo. There, use a translucent white/blurred backing (`bg-white/90 backdrop-blur`) with `pt-primary` text instead. Inline placements (e.g. Recommendation Detail's header, not on the image) use the plain outline.
 - **Signal tags** (Hidden Gem, Worth Traveling For, Would Return, etc.): outline pill, `pt-ink-soft` text, `pt-surface-2` background, `pt-border` border.
 - **Verification checkmark:** `pt-trust` icon + text, `pt-trust-soft` background pill — unchanged from current usage, just made consistent everywhere it appears (some screens currently render it differently).
 
