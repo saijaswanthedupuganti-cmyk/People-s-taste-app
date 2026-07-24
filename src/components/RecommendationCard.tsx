@@ -22,41 +22,37 @@ export default function RecommendationCard({ rec }: { rec: Recommendation }) {
   const { saved, toggle, signedIn } = useSave(rec.id);
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-pt-border bg-white shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
-      <Link to={`/rec/${rec.id}`} className="block cursor-pointer">
+    <article className="overflow-hidden rounded-2xl border border-pt-border bg-white shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)] md:hover:-translate-y-0.5 md:transition-transform">
+      <Link to={`/rec/${rec.id}`} className="relative block cursor-pointer">
         <PhotoPlaceholder photo={rec.photo} className="aspect-[4/3] w-full" />
+        <span
+          className={`absolute right-3 top-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+            isMustTry ? "bg-pt-primary text-white" : "bg-white/90 text-pt-primary backdrop-blur"
+          }`}
+        >
+          {isMustTry ? (
+            <Flame className="h-3.5 w-3.5" aria-hidden="true" strokeWidth={2.25} />
+          ) : (
+            <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" strokeWidth={2.25} />
+          )}
+          {isMustTry ? "Must-Try" : "Recommend"}
+        </span>
 
-        <div className="p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="truncate font-display text-base font-semibold text-pt-ink">
-                {rec.dishName ?? rec.restaurant.name}
-              </h3>
-              <p className="mt-0.5 truncate text-sm text-pt-ink-soft">
-                {rec.restaurant.name} · {rec.restaurant.area}
-              </p>
-            </div>
-            <span
-              className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                isMustTry ? "bg-pt-primary text-white" : "bg-pt-surface-3 text-pt-ink"
-              }`}
-            >
-              {isMustTry ? (
-                <Flame className="h-3.5 w-3.5" aria-hidden="true" strokeWidth={2.25} />
-              ) : (
-                <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" strokeWidth={2.25} />
-              )}
-              {isMustTry ? "Must-Try" : "Recommend"}
-            </span>
-          </div>
+        <div className="p-4 md:p-5">
+          <h3 className="truncate font-display text-lg font-semibold leading-6 text-pt-ink">
+            {rec.dishName ?? rec.restaurant.name}
+          </h3>
+          <p className="mt-0.5 truncate text-sm font-medium leading-5 text-pt-ink-soft">
+            {rec.restaurant.name} · {rec.restaurant.area}
+          </p>
 
-          <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-pt-ink">{rec.caption}</p>
+          <p className="mt-3 line-clamp-2 text-[15px] leading-[22px] text-pt-ink">{rec.caption}</p>
 
           <div className="mt-3 flex flex-wrap gap-1.5">
             {rec.mealTags.map((tag) => (
               <span
                 key={tag}
-                className="rounded-full border border-pt-border px-2 py-0.5 text-xs text-pt-ink-soft"
+                className="rounded-full border border-pt-border bg-pt-surface-2/60 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-pt-ink-soft"
               >
                 {MEAL_LABEL[tag]}
               </span>
@@ -65,7 +61,7 @@ export default function RecommendationCard({ rec }: { rec: Recommendation }) {
         </div>
       </Link>
 
-      <div className="flex items-center justify-between border-t border-pt-border px-4 py-3">
+      <div className="flex items-center justify-between border-t border-pt-border px-4 py-3 md:px-5">
         <Link to={`/u/${rec.author.username}`} className="flex min-w-0 cursor-pointer items-center gap-2">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-pt-surface-3 text-xs font-semibold text-pt-ink-soft">
             {initials(rec.author.displayName)}
