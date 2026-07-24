@@ -65,7 +65,7 @@ function RecommendationDetailContent({ rec }: { rec: Recommendation }) {
       </header>
 
       <div className="mx-auto max-w-2xl">
-        {rec.photo && <PhotoPlaceholder tone={rec.photo} className="aspect-[4/3] w-full" />}
+        <PhotoPlaceholder photo={rec.photo} className="aspect-[4/3] w-full" />
 
         <div className="px-4 py-4">
           <div className="flex items-start justify-between gap-3">

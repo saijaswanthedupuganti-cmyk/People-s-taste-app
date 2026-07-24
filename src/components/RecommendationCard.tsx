@@ -24,9 +24,7 @@ export default function RecommendationCard({ rec }: { rec: Recommendation }) {
   return (
     <article className="overflow-hidden rounded-2xl border border-pt-border bg-white shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <Link to={`/rec/${rec.id}`} className="block cursor-pointer">
-        {rec.photo ? (
-          <PhotoPlaceholder tone={rec.photo} className="aspect-[4/3] w-full" />
-        ) : null}
+        <PhotoPlaceholder photo={rec.photo} className="aspect-[4/3] w-full" />
 
         <div className="p-4">
           <div className="flex items-start justify-between gap-3">
