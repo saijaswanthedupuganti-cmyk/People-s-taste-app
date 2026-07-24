@@ -27,7 +27,8 @@ service cloud.firestore {
     }
 
     match /saves/{saveId} {
-      allow read: if request.auth != null && saveId.matches(request.auth.uid + '_.*');
+      allow read: if request.auth != null &&
+        (saveId.matches(request.auth.uid + '_.*') || resource.data.uid == request.auth.uid);
       allow write: if false;
     }
 
