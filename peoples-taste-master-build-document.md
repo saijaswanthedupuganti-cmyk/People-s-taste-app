@@ -1,5 +1,5 @@
 # PEOPLE'S TASTE — MASTER BUILD DOCUMENT
-**Version 1.3 · July 2026 · Owner: Sai Jaswanth Edupuganti**
+**Version 1.4 · July 2026 · Owner: Sai Jaswanth Edupuganti**
 **Status: Foundation document. Every line is editable by the owner. Claude Code must treat this as the single source of truth.**
 
 **v1.1 changelog:** merged four items from the earlier `Peoples_Taste_Product_Blueprint_v0.1` draft that hadn't made it into v1.0 — Community Places (§5.1), follow-based feed composition (§11.6), per-recommendation feedback loop (§11.7), and the Restaurant Owner role (§7, §7.2). Schema updated to match (§15).
@@ -7,6 +7,8 @@
 **v1.2 changelog:** merged six concrete findings from external research (trust-algorithm literature, anti-fraud case studies, competitor teardown, Firestore-at-scale data) — corrected the time-decay constant to an internally consistent value (§11.1), added a trust-velocity anti-farming rule (§9.3), added an impossible-travel abuse check (§14), added two 2026 competitors to the positioning table (§2), documented the Postgres+pgvector migration trigger (§16.1), and flagged the confidence/sample-size gap in the v1 ranking formula as a named consideration for v2 (§11.2). Everything else from that research (market benchmarks, UX teardown detail) was read and is *consistent with* existing decisions, not additive — noted inline where relevant, not expanded into new sections.
 
 **v1.3 changelog:** the `Peoples_Taste_Claude_Code_Master_Spec` (Kimi) document's full type schema was cross-checked use-case-by-use-case against this doc, not just for bugs. Six genuine feature gaps surfaced — things that schema assumed exist but this doc never specified: user handles/public profile URLs (§15), blocking (§14, §15), People search (§13), notifications (§8.1 screen 13, §15), user-level dietary/cuisine/price preferences as feed personalization (§13.2), and PWA installability (§16). Also added: lightweight replies as an explicit **open decision** rather than silently adopting full comment threads (D8, §20) — Kimi's schema assumes comments exist, but that's in tension with Principle #1 ("recommendation is the atomic unit," not a review-and-discussion thread) and deserves an owner call, not a silent merge. Architecture itself (Vite/Firestore/flat schema/trust-weighted voting) is unchanged — this pass is about use-case completeness, not another stack decision.
+
+**v1.4 changelog:** owner supplied a 28-point product review checklist (2026-07-25) and asked for it to be cross-checked against this document and the live codebase, not adopted at face value. Result, in full, is new §21. Headline finding: this was **not** mostly a "28 new features" situation — the large majority of the checklist was already specified here, several as *locked, Phase 1, non-negotiable* — and a code audit found several of those were never actually built despite later phases (posting, voting, tiers) shipping around them. Most serious: §14's Anti-Abuse Stack (App Check, velocity limits, blocking, impossible-travel/device-fingerprint checks) is almost entirely unbuilt; §11.1's ranking formula (trust-weighted `rankingScore` with time decay) doesn't exist — the feed is pure `createdAt` chronological order today, which quietly contradicts the "we rank by trust, not chronology" positioning claim in §2; §11.6's follow-based feed layering is unbuilt; the Editor Console (§8.1 screen 11) — a *Phase 0 exit criterion* — was never built at all. Six items from the checklist are genuinely new (not in this doc before) and get logged as owner decisions D9–D14 rather than silently built: SEO/rendering strategy for the SPA architecture (D9), a Community Vendor identity-verification pipeline that's stricter than §5.1's existing dedupe-only flow (D10), Dynamic Vendors / today's-location-and-timing for mobile vendors (D11), Creator Profile fields distinct from the per-post proof-link shipped same day (D12), pretty share-link URLs (D13), and closing the overdue Editor Console (D14, not really a new *decision* so much as a scheduling call on when it finally gets built). Full detail, phase-by-phase gap table, and reasoning in §21 — do not start building any checklist item without reading it first.
 
 ---
 
@@ -584,7 +586,82 @@ Taste Graph ("92% taste match with people like you") · pairwise in-bucket compa
 | D6 | Restaurant Owner claim verification method (§7.2) | Phone match to Google Business / document upload / deposit-refund | Blocked — must choose before Phase 2 owner claims ship |
 | D7 | Negative-feedback report threshold before ranking suppression kicks in (§11.7) | e.g. 3 / 5 / 10 independent reports | Blocked — must choose before Phase 2 feedback loop ships |
 | D8 | Comments/replies on recommendations (§6.1) | No comments in MVP / one scoped author-only reply, not a thread | No comments — simplest, most on-brand, don't build `comments` collection until decided |
+| D9 | SEO/rendering strategy for public pages (§21.3) | Add SSR/prerendering now (Next.js migration or a prerender service) / defer until Phase 3 seed content exists | Defer to Phase 3 — an SPA with zero real recommendations has nothing worth ranking yet; revisit when the 300-restaurant seed lands |
+| D10 | Community Vendor identity verification (§21.4) — phone → selfie → location → community confirm → admin approve, stricter than §5.1's dedupe-only flow | Extend §5.1 with this pipeline now / treat as a Phase 2+ addition once street-vendor volume justifies it | Blocked — needs owner call on whether this replaces or layers onto §5.1, and at what phase |
+| D11 | Dynamic Vendors — today's-location/timing/offers for food trucks (§21.4) | Build now as a restaurant sub-type / defer until Community Vendor verification (D10) ships | Defer — depends on D10 landing first |
+| D12 | Creator Profile fields (Instagram/YouTube/Website on `users/{uid}`, distinct from the per-post `proofUrl` shipped 2026-07-25) | Add profile-level creator links now / fold into a later Tastemaker-tier feature | Blocked — needs scope call (links only, or embedded post/reel rendering too) |
+| D13 | Pretty share-link URLs (e.g. `peoplestaste.in/r/cafe-bahar-best-biryani`) (§21.3) | Build now / depends on D9 | Blocked on D9 — no point generating SEO-friendly slugs before the rendering strategy is decided |
+| D14 | Editor/Admin Console (§8.1 screen 11) — a Phase 0 exit criterion never built | Build a minimal skeleton now (seed restaurants, review queue placeholder) / keep deferring | Recommend: build now — every other Phase 0/1 item shipped around it, and moderation queue (§14) has nowhere to route to without it |
 
 ---
 
-*End of Master Build Document v1.3. Every line above is subject to owner revision. Claude Code: build Phase 0 first, confirm exit criteria, then request approval to proceed.*
+# PART 7 — v1.4 CHECKLIST CROSS-CHECK (2026-07-25)
+
+## 21. Owner's 28-Point Product Review, Audited Against This Doc and the Live Codebase
+
+Owner supplied a 28-section product review checklist and asked for every existing feature to be reviewed against it — fix what's broken, add what's missing, improve what's weak, without drifting from Part 1's principles. Per instruction #1 (top of this doc), nothing here gets built silently; this section is the audit, §20 D9–D14 are the resulting new decisions, and nothing past this point has been coded yet.
+
+### 21.1 Already fully specified elsewhere in this doc — checklist item, doc reference, and real build status
+
+| Checklist item | Spec'd at | Built? |
+|---|---|---|
+| 1. Auth & progressive access | §7, Principle #4 | ✅ Built correctly — visitor browsing, gated post/save/vote, no forced login wall |
+| 5. Community Places | §5.1 | ✅ Built — `communityPlace` input path, GPS pin, no address/category required |
+| 6. Duplicate detection | §5.1 | ⚠️ Partial — nearby-radius + name-match dedup exists server-side and **auto-merges silently**; the doc's "Did you mean [X]?" **confirmation UI** was never built, so a user has no idea their post got merged into an existing place |
+| 7. Trusted Foodie tiers | §9 | ✅ Built — tiers, `computeTrust`, badges. Code comments in `trust.ts` already self-document that `consistencyFactor` and `communityFactor` are stubbed at 0 pending posting-cadence history and Follow (item 11) |
+| 8. Ranking formula | §11.1 (**locked**) | ❌ **Not built.** No `rankingScore` field anywhere in the schema, no time-decay computation, no `Math.exp`/`e^(−kΔt)` anywhere in the functions codebase. The feed query (`fetchFeed`) sorts by `orderBy("createdAt", "desc")` only — pure chronological order. This directly undercuts the §2 positioning claim ("we rank by trusted human recommendations," not proximity/recency) |
+| 9. Success validation ("did this meet expectations?") | §11.7 | ⏸ Correctly not built — explicitly `[Phase 2, ships with check-ins]`, not a current-phase gap |
+| 10. Restaurant vs Dish pages | §15 schema, §5 | ⚠️ Partial — `RestaurantProfile.tsx` exists with emergent aggregates. The `dishes/{dishId}` collection in the locked schema is **never written to** — `dishName` lives only as a string field on each recommendation, so there is no dish-level aggregation page (best restaurants *for a dish*, across the city) at all |
+| 11. Following system | §11.6 (**locked**, not phase-tagged — implied core loop via the Member role in §7 and use case U6) | ❌ **Not built.** No `follows` collection, no follow button anywhere, no feed layering. `trust.ts` already flags this as a blocker for `communityFactor` |
+| 12–13. Landing / personalized experience | §8.1 screen 1, §11.6, §13.2 | ⚠️ Partial — the 2026-07-25 Home redesign covers "Trending," "Hidden Gems," "Trusted Foodies Near You" as real filtered views. Follow-based layer 1–2 (§11.6) doesn't exist (see item 11); `users.preferences` (dietary/cuisine/price, §13.2) was never added, so there's no personalization tie-breaker and no Settings screen (§8.1 screen 14) to set it |
+| 14–15. Restaurant Owner Portal & verification | §7.2, D6 | ⏸ Correctly not built — explicitly `[Phase 2/DEFERRED]`. Flagging this checklist item as already-decided-to-wait, not a gap |
+| 19. Sponsored listings | Principle #2, §17 Phase 4 | ⏸ Correctly not built — explicitly deferred to Phase 4, and Principle #2 requires visual separation from organic ranking whenever it does ship |
+| 20–22. Creator Program / links / embedded media | *(not previously in this doc)* | ⚠️ Partially covered same-day — the per-post `proofUrl` (YouTube/Instagram link, manual verification, shipped 2026-07-25) covers the "official links only, no video uploads" spirit of item 22 at the post level. A profile-level Creator Profile (item 21) and actual oEmbed rendering (item 22) do not exist — logged as D12 |
+| 23–24. Share links / growth loop | *(not previously in this doc)* | ❌ Not built — URLs are `/rec/:id` (raw Firestore doc ID), no slug, no OG metadata, no preview image generation. Logged as D13, gated on the SEO decision (D9) |
+| 25. Security / anti-abuse | §14 (**"Phase 1, non-negotiable"**) | ❌ **Almost entirely not built.** Audited line-by-line against the live codebase: |
+
+**§14 line-by-line audit (the most serious finding in this pass):**
+
+| §14 requirement | Status |
+|---|---|
+| Firebase App Check | ❌ Not configured anywhere (`firebase.ts`, functions, `firebase.json`) |
+| Phone or Google OAuth only, no anonymous accounts | ✅ Google OAuth only — matches |
+| Velocity limits (5 recs/hr, 30 votes/min, 100 follows/day) | ❌ No rate-limiting logic in `createRecommendation.ts` or `toggleHelpfulVote.ts` at all |
+| One vote per user per recommendation | ✅ Built correctly — vote doc ID is the voter's UID (`recommendations/{id}/votes/{voterUid}`), structurally impossible to double-vote |
+| Geo-mismatch suppression | ❌ Not implemented — `createRecommendation.ts` only uses `userLocation` for the L1/L2 verification bump, never checks plausibility against the restaurant's country/city |
+| Device fingerprinting | ❌ No `deviceFingerprints` field, no collection logic |
+| Trust-weighted ranking as last line of defense | ❌ Depends on item 8 (ranking formula), which isn't built either — so this backstop doesn't currently exist |
+| Impossible-travel check | ❌ Not implemented |
+| Trust velocity check (§9.3) | ❌ Not implemented (also self-flagged as pending in `trust.ts` comments) |
+| Blocking (`blocks/{blockerUid}_{blockedUid}`) | ❌ No `blocks` collection, no block button, no enforcement in feed/search/notifications |
+
+The doc itself cites Yelp closing 551,200 accounts for review manipulation in a single year as the reason this section is "non-negotiable" rather than nice-to-have — worth re-reading that line given how little of it actually shipped.
+
+| 26. Database schema review | §15 (**locked**) | Missing collections vs. spec: `follows`, `blocks`, `notifications`, `checkins`, `editorsPicks`, `leaderboards`, `applications`, `reports` — none exist yet (several are correctly Phase-2+-tagged, not a gap). Missing fields on existing collections: `users.preferences`, `users.notificationSettings`, `users.deviceFingerprints`, `users.counts`; `recommendations.dishId`, `query_tags[]`, `bucketId`, `geoAtPost`, `rankingScore`, `viewCount`/`shareCount`; `recommendations.status` is currently a free `"active"` string rather than the locked `"live"｜"suppressed"｜"removed"` enum; `restaurants.googlePlaceId`, `placeCache`, `claimedBy`, `ownerClaimStatus` don't exist because Google Places integration (item 3 below) was never wired up |
+| 27. Post flow under 30s, everything but restaurant→dish→reason optional | §5, principle #4 | ⚠️ Partial — current flow gates on `mealTags` and `primarySignal` as required steps *in addition to* place/dish/caption, which is more mandatory friction than the doc's stated ideal. Worth a follow-up UX pass, not urgent |
+| 28. Future roadmap placeholders | §17 Phase 4 | ✅ Already documented there — nothing to add |
+
+### 21.2 Google Maps integration — checklist items 3 & 4, spec'd at §16 (**locked cost rules**), not built at all
+
+This is a bigger gap than it first looks: the Post flow's restaurant search (`fetchRestaurants` in `queries.ts`) only searches restaurant docs **already sitting in Firestore** — there is no live call to Google Places Autocomplete or Place Details anywhere in the codebase. Every restaurant currently in the database got there by direct Firestore write (seed/manual), not through the Places pipeline §16 describes. The "Iron Cache Rule" (ping Google once, cache forever) is aspirationally correct policy but there's nothing to cache from yet. Building this for real means: Places Autocomplete with session tokens in the Post flow's "Where?" step, a Place Details call (field-masked) on selection, writing the result into `restaurants/{id}.placeCache`, and a Google Maps API key with hard quotas + billing alerts set before this ships (§16 budget reality: ~28k calls/month free tier). This is Phase 0/1 work per the doc's own placement, not new scope — it just never got built.
+
+### 21.3 SEO & growth loop — checklist items 2, 23, 24 — new ground, logged as D9/D13
+
+The architecture is a client-rendered Vite SPA (confirmed: `index.html` ships an empty `<div id="root">`, all content renders via JS after load). This has a real consequence the checklist doesn't spell out: Googlebot executes JS reasonably well today, but **social preview crawlers largely don't** (Facebook/WhatsApp/Twitter link unfurling, Slack previews) — they read static `<meta property="og:*">` tags from the raw HTML response, which a pure SPA can't provide per-page without either (a) a framework migration to something with SSR (Next.js), or (b) a prerendering layer bolted in front (e.g. a Cloud Function that detects crawler user-agents and serves pre-rendered HTML for public routes). Item 24's whole growth loop — "influencer posts a Reel with a People's Taste link, someone opens it, sees a rich preview" — depends entirely on this working. Given the site currently has zero real recommendations to make discoverable, D9 recommends deferring this investment until the Phase 3 seed (300 restaurants) gives search engines and share links something worth indexing, rather than building SSR infrastructure around an empty database today.
+
+### 21.4 Community Vendor Verification & Dynamic Vendors — checklist items 16 & 17, new ground, logged as D10/D11
+
+§5.1 already supports community places (name + pinned GPS, no Google requirement) but has **no identity verification** — anyone can add one, deduped only by name/proximity. The checklist's proposed pipeline (phone → selfie → location → community confirmation → admin approval → "Verified Community Vendor" badge) is a materially stricter, higher-friction flow that would sit on top of §5.1, not replace it. Given Principle #4 ("never block core value behind... mandatory verification"), this needs to stay opt-in — a badge a vendor *can* earn, never a gate on being listed at all. Dynamic Vendors (today's-location/timing/offers, open/closed status) is a reasonable extension once vendor identity exists, but building "today's location" tracking before verification exists risks becoming a spam/impersonation vector with zero of §14's anti-abuse stack in place yet. Recommend: sequence this after §14 gets built, not before.
+
+### 21.5 What this means for build order
+
+Given the above, the highest-leverage next work — the things marked *locked* and *Phase 1 non-negotiable* in this document that somehow never got built — is, in priority order:
+
+1. **§14 Anti-Abuse Stack basics** (App Check, velocity limits, blocking) — real users can already reach this app; every day it's live without this is a day of exposure the doc explicitly warned about
+2. **§11.1 Ranking Engine** (`rankingScore`, time decay, feed sorted by it instead of `createdAt`) — the core "trust, not chronology" claim isn't actually true of the shipped product yet
+3. **§8.1 screen 11 Editor Console** (D14) — overdue Phase 0 exit criterion, and §14's moderation queue has nowhere to route to without it
+4. **§11.6 Follow system** — unblocks `trust.ts`'s stubbed `communityFactor`, the "Trusted Foodies Near You" personalization, and use case U6
+5. Google Places integration (§16, items 3–4) — needed before real restaurant data can scale past manual seeding
+6. Everything gated on D9–D13 (SEO/share-links, Community Vendor pipeline, Creator Profile) — worth owner decisions before code, not before
+
+*End of Master Build Document v1.4. Every line above is subject to owner revision. Claude Code: confirm build order in §21.5 with the owner before starting, per instruction #3 (top of this doc).*
