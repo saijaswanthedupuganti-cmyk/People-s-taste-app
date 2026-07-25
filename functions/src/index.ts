@@ -5,6 +5,7 @@ import { createRecommendationHandler, type CreateRecommendationInput } from "./r
 import { toggleHelpfulVoteHandler } from "./recommendations/toggleHelpfulVote.js";
 import { toggleSaveHandler } from "./saves/toggleSave.js";
 import { ensureUserProfileHandler } from "./users/ensureUserProfile.js";
+import { updateHomeAreaHandler } from "./users/updateHomeArea.js";
 
 const store = new FirestoreStore(db);
 
@@ -41,4 +42,14 @@ export const ensureUserProfile = onCall({ region: "asia-south1" }, async (reques
   const { displayName, photoURL, email } = request.data as { displayName: string; photoURL: string; email: string };
   if (!email) throw new HttpsError("invalid-argument", "email is required");
   return ensureUserProfileHandler({ uid: request.auth.uid, displayName, photoURL, email }, store);
+});
+
+export const updateHomeArea = onCall({ region: "asia-south1" }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Login required");
+  const { homeArea } = request.data as { homeArea: string };
+  try {
+    return await updateHomeAreaHandler({ uid: request.auth.uid, homeArea }, store);
+  } catch (err) {
+    throw new HttpsError("invalid-argument", err instanceof Error ? err.message : "Invalid request");
+  }
 });

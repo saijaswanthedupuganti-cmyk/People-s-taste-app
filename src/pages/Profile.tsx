@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { LogOut } from "lucide-react";
+import { ChevronDown, LogOut, MapPin } from "lucide-react";
 import { collection, doc, getCountFromServer, getDoc, query, where } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import TrustBadge from "../components/TrustBadge";
+import LocationSheet from "../components/LocationSheet";
 import { TIER_LABEL } from "../types";
 import type { Tier } from "../types";
 
@@ -12,6 +14,7 @@ interface OwnTrust {
   trustScore: number;
   recCount: number;
   savedCount: number;
+  homeArea: string | null;
 }
 
 const TIER_MIN_SCORE: Record<Tier, number> = {
@@ -28,6 +31,8 @@ const TIER_ORDER: Tier[] = ["explorer", "local_foodie", "verified_foodie", "neig
 export default function Profile() {
   const { user, logOut } = useAuth();
   const [trust, setTrust] = useState<OwnTrust | null>(null);
+  const [areaSheetOpen, setAreaSheetOpen] = useState(false);
+  const [savingArea, setSavingArea] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -35,15 +40,30 @@ export default function Profile() {
       getDoc(doc(db, "users", user.uid)),
       getCountFromServer(query(collection(db, "saves"), where("uid", "==", user.uid))),
     ]).then(([userSnap, savesCount]) => {
-      const data = userSnap.data() as { tier: Tier; trustScore: number; recCount: number } | undefined;
+      const data = userSnap.data() as
+        | { tier: Tier; trustScore: number; recCount: number; homeArea?: string | null }
+        | undefined;
       setTrust({
         tier: data?.tier ?? "explorer",
         trustScore: data?.trustScore ?? 10,
         recCount: data?.recCount ?? 0,
         savedCount: savesCount.data().count,
+        homeArea: data?.homeArea ?? null,
       });
     });
   }, [user]);
+
+  async function handleSelectArea(area: string) {
+    setAreaSheetOpen(false);
+    setSavingArea(true);
+    try {
+      const updateHomeArea = httpsCallable(functions, "updateHomeArea");
+      await updateHomeArea({ homeArea: area });
+      setTrust((cur) => (cur ? { ...cur, homeArea: area } : cur));
+    } finally {
+      setSavingArea(false);
+    }
+  }
 
   if (!trust) {
     return <div className="px-4 py-10 text-center text-pt-ink-soft">Loading…</div>;
@@ -74,6 +94,33 @@ export default function Profile() {
             <TrustBadge tier={trust.tier} className="mt-1" />
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setAreaSheetOpen(true)}
+          disabled={savingArea}
+          className="mt-4 flex min-h-[44px] w-full cursor-pointer items-center gap-2 rounded-2xl border border-pt-border bg-white px-4 text-left transition-colors duration-150 hover:border-pt-primary/40 disabled:opacity-70"
+        >
+          <MapPin className="h-4 w-4 shrink-0 text-pt-primary" aria-hidden="true" strokeWidth={2} />
+          <span className="flex-1 text-sm text-pt-ink">
+            {trust.homeArea ? (
+              <>
+                Home area: <span className="font-medium">{trust.homeArea}</span>
+              </>
+            ) : (
+              "Set your home area"
+            )}
+          </span>
+          <ChevronDown className="h-4 w-4 text-pt-ink-soft" aria-hidden="true" strokeWidth={2} />
+        </button>
+
+        {areaSheetOpen && (
+          <LocationSheet
+            currentArea={trust.homeArea ?? ""}
+            onClose={() => setAreaSheetOpen(false)}
+            onSelect={handleSelectArea}
+          />
+        )}
 
         {nextTier && (
           <div className="mt-5 rounded-2xl border border-pt-border bg-white p-4">

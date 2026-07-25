@@ -64,6 +64,7 @@ export function createTestStore() {
         helpfulVoteCount: 0,
         status: "active",
         proofUrl: input.proofUrl,
+        photo: input.photo,
         createdAt: Date.now(),
       });
       return id;
@@ -109,6 +110,7 @@ export function createTestStore() {
         recCount: 0,
         verifiedRecCount: 0,
         weightedHelpfulReceived: 0,
+        homeArea: null,
         createdAt: Date.now(),
       });
     },
@@ -128,6 +130,11 @@ export function createTestStore() {
       if (!u) return;
       u.trustScore = trustScore;
       u.tier = tier;
+    },
+    async updateUserHomeArea(id, homeArea) {
+      const u = users.get(id);
+      if (!u) return;
+      u.homeArea = homeArea;
     },
   };
 

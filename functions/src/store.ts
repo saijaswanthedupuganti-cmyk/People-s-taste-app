@@ -30,6 +30,7 @@ export interface Store {
   incrementUserRecCount(id: string, verified: boolean): Promise<void>;
   applyHelpfulReceivedDelta(id: string, delta: number): Promise<void>;
   updateUserTrust(id: string, trustScore: number, tier: Tier): Promise<void>;
+  updateUserHomeArea(id: string, homeArea: string): Promise<void>;
 }
 
 // Real Firestore-backed implementation. Deliberately thin - every method is a
@@ -102,6 +103,7 @@ export class FirestoreStore implements Store {
       helpfulVoteCount: 0,
       status: "active",
       proofUrl: input.proofUrl,
+      photo: input.photo,
       createdAt: FieldValue.serverTimestamp(),
     });
     return ref.id;
@@ -178,6 +180,7 @@ export class FirestoreStore implements Store {
       recCount: 0,
       verifiedRecCount: 0,
       weightedHelpfulReceived: 0,
+      homeArea: null,
       createdAt: FieldValue.serverTimestamp(),
     });
   }
@@ -196,5 +199,9 @@ export class FirestoreStore implements Store {
 
   async updateUserTrust(id: string, trustScore: number, tier: Tier): Promise<void> {
     await this.db.collection("users").doc(id).update({ trustScore, tier });
+  }
+
+  async updateUserHomeArea(id: string, homeArea: string): Promise<void> {
+    await this.db.collection("users").doc(id).update({ homeArea });
   }
 }

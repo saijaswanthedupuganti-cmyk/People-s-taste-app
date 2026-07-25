@@ -1,12 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Check, Flame, MapPinPlus, Search, ThumbsUp } from "lucide-react";
+import { ArrowLeft, Camera, Check, Flame, MapPinPlus, Search, ThumbsUp, X } from "lucide-react";
 import { httpsCallable } from "firebase/functions";
-import { functions } from "../lib/firebase";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { functions, storage } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import { fetchRestaurants } from "../lib/queries";
 import { MEAL_LABEL, SIGNAL_LABEL } from "../types";
 import type { MealTag, PrimarySignal, Restaurant, SignalTag } from "../types";
+
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 
 const STEPS = ["Place", "Dish", "When", "Signal", "Tags", "Caption"] as const;
 const ALL_MEALS: MealTag[] = ["breakfast", "lunch", "dinner", "late_night", "cafe", "dessert", "drinks", "brunch"];
@@ -49,6 +52,11 @@ export default function Post() {
   const [signalTags, setSignalTags] = useState<Set<SignalTag>>(new Set());
   const [caption, setCaption] = useState("");
   const [proofUrl, setProofUrl] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -74,6 +82,31 @@ export default function Post() {
     true, // signal tags optional
     caption.trim().length >= 10 && caption.trim().length <= 500 && proofUrlValid,
   ];
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoError(null);
+    if (!file.type.startsWith("image/")) {
+      setPhotoError("Photo must be an image file.");
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      setPhotoError("Photo must be under 8MB.");
+      return;
+    }
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  }
+
+  function removePhoto() {
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setPhotoError(null);
+  }
 
   function toggle<T>(set: Set<T>, setSet: (s: Set<T>) => void, value: T) {
     const next = new Set(set);
@@ -102,6 +135,18 @@ export default function Post() {
     }
 
     try {
+      let photoUrl: string | null = null;
+      if (photoFile) {
+        setUploadingPhoto(true);
+        try {
+          const path = `recs/${user.uid}/${Date.now()}-${photoFile.name}`;
+          const snapshot = await uploadBytes(storageRef(storage, path), photoFile);
+          photoUrl = await getDownloadURL(snapshot.ref);
+        } finally {
+          setUploadingPhoto(false);
+        }
+      }
+
       const createRecommendation = httpsCallable(functions, "createRecommendation");
       const payload = wantsCommunityPlace
         ? {
@@ -118,6 +163,7 @@ export default function Post() {
             caption: caption.trim(),
             userLocation,
             proofUrl: proofUrl.trim() || null,
+            photoUrl,
           }
         : {
             restaurantId: restaurant?.id,
@@ -128,6 +174,7 @@ export default function Post() {
             caption: caption.trim(),
             userLocation,
             proofUrl: proofUrl.trim() || null,
+            photoUrl,
           };
 
       const response = await createRecommendation(payload);
@@ -348,6 +395,39 @@ export default function Post() {
             />
             <p className="mt-1 text-right text-xs text-pt-ink-soft">{caption.length}/500 (min 10)</p>
 
+            <h2 className="mt-6 font-display text-lg font-semibold text-pt-ink">Photo (optional)</h2>
+            <p className="mt-1 text-sm text-pt-ink-soft">A photo of the dish or place goes a long way.</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoChange}
+              className="hidden"
+            />
+            {photoPreview ? (
+              <div className="relative mt-3 w-full max-w-xs overflow-hidden rounded-xl border border-pt-border">
+                <img src={photoPreview} alt="" className="aspect-[4/3] w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={removePhoto}
+                  aria-label="Remove photo"
+                  className="absolute right-2 top-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-pt-ink/60 text-white hover:bg-pt-ink/80"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" strokeWidth={2} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-3 flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl border border-dashed border-pt-border px-4 text-sm font-medium text-pt-ink-soft transition-colors duration-150 hover:border-pt-primary/50 hover:text-pt-ink"
+              >
+                <Camera className="h-4.5 w-4.5" aria-hidden="true" strokeWidth={1.75} />
+                Add a photo
+              </button>
+            )}
+            {photoError && <p className="mt-1 text-sm text-pt-danger">{photoError}</p>}
+
             <h2 className="mt-6 font-display text-lg font-semibold text-pt-ink">Proof link (optional)</h2>
             <p className="mt-1 text-sm text-pt-ink-soft">
               Paste a YouTube or Instagram link showing this dish — shown on your post as manual verification.
@@ -388,7 +468,7 @@ export default function Post() {
               onClick={handleSubmit}
               className="min-h-[44px] flex-1 cursor-pointer rounded-full bg-pt-primary px-6 text-sm font-semibold text-white transition-colors duration-150 hover:bg-pt-primary-deep disabled:cursor-not-allowed disabled:bg-pt-surface-3 disabled:text-pt-ink-soft"
             >
-              {submitting ? "Posting…" : "Post recommendation"}
+              {uploadingPhoto ? "Uploading photo…" : submitting ? "Posting…" : "Post recommendation"}
             </button>
           )}
         </div>

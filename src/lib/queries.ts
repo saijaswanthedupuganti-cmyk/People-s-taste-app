@@ -42,6 +42,7 @@ interface RawRecommendation {
   helpfulVoteCount: number;
   status: string;
   proofUrl: string | null;
+  photo: string | null;
   createdAt: Timestamp;
 }
 
@@ -78,7 +79,7 @@ function toRecommendation(
       city: restaurant?.city ?? "",
     },
     dishName: raw.dishName,
-    photo: null,
+    photo: raw.photo ?? null,
     mealTags: raw.mealTags as MealTag[],
     signalTags: raw.signalTags as SignalTag[],
     primarySignal: raw.primarySignal,

@@ -5,6 +5,7 @@ import { computeTrust } from "../trust.js";
 const GPS_VERIFICATION_RADIUS_METERS = 100;
 const COMMUNITY_PLACE_DEDUPE_RADIUS_METERS = 150;
 const PROOF_URL_HOSTS = ["youtube.com", "www.youtube.com", "youtu.be", "instagram.com", "www.instagram.com"];
+const PHOTO_URL_HOSTS = ["firebasestorage.googleapis.com", "storage.googleapis.com"];
 
 export interface CreateRecommendationInput {
   authorId: string;
@@ -22,6 +23,7 @@ export interface CreateRecommendationInput {
   caption: string;
   userLocation?: { lat: number; lng: number };
   proofUrl?: string | null;
+  photoUrl?: string | null;
 }
 
 // Manual proof link only (§ per-post verification) — not tied to verificationLevel/trust,
@@ -37,6 +39,23 @@ function normalizeProofUrl(proofUrl: string | null | undefined): string | null {
   }
   if (!PROOF_URL_HOSTS.includes(parsed.hostname.toLowerCase())) {
     throw new Error("proofUrl must be a YouTube or Instagram link");
+  }
+  return parsed.toString();
+}
+
+// Only accept photo URLs from our own Firebase Storage bucket (uploaded via the client
+// Storage SDK before this call) — never an arbitrary external URL.
+function normalizePhotoUrl(photoUrl: string | null | undefined): string | null {
+  const trimmed = photoUrl?.trim();
+  if (!trimmed) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new Error("photoUrl must be a valid URL");
+  }
+  if (!PHOTO_URL_HOSTS.includes(parsed.hostname.toLowerCase())) {
+    throw new Error("photoUrl must be a Firebase Storage link");
   }
   return parsed.toString();
 }
@@ -57,6 +76,7 @@ export async function createRecommendationHandler(
     throw new Error("caption must be between 10 and 500 characters");
   }
   const proofUrl = normalizeProofUrl(input.proofUrl);
+  const photo = normalizePhotoUrl(input.photoUrl);
 
   let restaurantId: string;
   let restaurantLocation: { lat: number; lng: number } | null = null;
@@ -132,6 +152,7 @@ export async function createRecommendationHandler(
     verificationLevel,
     trustSnapshot,
     proofUrl,
+    photo,
   });
 
   await store.incrementRestaurantRecCount(restaurantId);

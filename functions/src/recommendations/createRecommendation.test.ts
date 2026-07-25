@@ -28,6 +28,7 @@ describe("createRecommendationHandler", () => {
       recCount: 0,
       verifiedRecCount: 0,
       weightedHelpfulReceived: 0,
+      homeArea: null,
       createdAt: FIXED_NOW,
     });
 
@@ -256,6 +257,73 @@ describe("createRecommendationHandler", () => {
         FIXED_NOW,
       ),
     ).rejects.toThrow(/restaurant/i);
+  });
+
+  it("accepts a Firebase Storage photo URL and stores it verbatim", async () => {
+    const { store, restaurants } = createTestStore();
+    restaurants.set("r1", {
+      id: "r1",
+      name: "Shah Ghouse",
+      source: "google",
+      location: { lat: 17.3999, lng: 78.4118 },
+      area: "Tolichowki",
+      city: "Hyderabad",
+      aggregates: { recCount: 0 },
+      createdBy: "seed",
+      createdAt: Date.now(),
+    });
+
+    const result = await createRecommendationHandler(
+      {
+        authorId: "u1",
+        restaurantId: "r1",
+        dishName: "Mutton Biryani",
+        mealTags: ["dinner"],
+        signalTags: [],
+        primarySignal: "recommend",
+        caption: "Great biryani here.",
+        photoUrl: "https://firebasestorage.googleapis.com/v0/b/peoplestaste8.firebasestorage.app/o/recs%2Fu1%2Fphoto.jpg",
+      },
+      store,
+      FIXED_NOW,
+    );
+
+    const rec = await store.getRecommendation(result.recommendationId);
+    expect(rec?.photo).toBe(
+      "https://firebasestorage.googleapis.com/v0/b/peoplestaste8.firebasestorage.app/o/recs%2Fu1%2Fphoto.jpg",
+    );
+  });
+
+  it("rejects a photo URL that isn't from Firebase Storage", async () => {
+    const { store, restaurants } = createTestStore();
+    restaurants.set("r1", {
+      id: "r1",
+      name: "Shah Ghouse",
+      source: "google",
+      location: { lat: 17.3999, lng: 78.4118 },
+      area: "Tolichowki",
+      city: "Hyderabad",
+      aggregates: { recCount: 0 },
+      createdBy: "seed",
+      createdAt: Date.now(),
+    });
+
+    await expect(
+      createRecommendationHandler(
+        {
+          authorId: "u1",
+          restaurantId: "r1",
+          dishName: "Mutton Biryani",
+          mealTags: ["dinner"],
+          signalTags: [],
+          primarySignal: "recommend",
+          caption: "Great biryani here.",
+          photoUrl: "https://evil.com/fake.jpg",
+        },
+        store,
+        FIXED_NOW,
+      ),
+    ).rejects.toThrow(/Firebase Storage/i);
   });
 
   it("accepts a YouTube proof link and stores it verbatim", async () => {

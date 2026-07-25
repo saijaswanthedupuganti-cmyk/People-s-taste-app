@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search as SearchIcon, X } from "lucide-react";
+import { Search as SearchIcon, Users, X } from "lucide-react";
 import { fetchFeed, fetchRestaurants } from "../lib/queries";
 import type { Recommendation, Restaurant } from "../types";
 import RecommendationCard from "../components/RecommendationCard";
 import FilterChips from "../components/FilterChips";
-import TrustBadge from "../components/TrustBadge";
 import { MEAL_LABEL } from "../types";
 import type { MealTag } from "../types";
 
-type Tab = "dishes" | "places" | "people";
+type Tab = "dishes" | "places";
 
 const MEAL_FILTERS: MealTag[] = ["breakfast", "lunch", "dinner", "late_night"];
 
@@ -24,11 +23,6 @@ export default function Search() {
     fetchFeed().then(setFeed);
     fetchRestaurants().then(setRestaurants);
   }, []);
-
-  const people = useMemo(
-    () => [...new Map(feed.map((r) => [r.author.username, r.author])).values()],
-    [feed],
-  );
 
   const q = query.trim().toLowerCase();
 
@@ -45,14 +39,6 @@ export default function Search() {
   const placeResults = useMemo(
     () => restaurants.filter((r) => !q || r.name.toLowerCase().includes(q) || r.area.toLowerCase().includes(q)),
     [q, restaurants],
-  );
-
-  const peopleResults = useMemo(
-    () =>
-      people.filter(
-        (p) => !q || p.username.toLowerCase().includes(q) || p.displayName.toLowerCase().includes(q),
-      ),
-    [q, people],
   );
 
   return (
@@ -86,11 +72,10 @@ export default function Search() {
             )}
           </div>
 
-          <div className="mt-3 flex gap-1 border-b border-pt-border" role="tablist">
+          <div className="mt-3 flex items-center gap-1 border-b border-pt-border" role="tablist">
             {([
               ["dishes", "Dishes & Places"],
               ["places", "Places"],
-              ["people", "People"],
             ] as [Tab, string][]).map(([id, label]) => (
               <button
                 key={id}
@@ -104,6 +89,13 @@ export default function Search() {
                 {label}
               </button>
             ))}
+            <Link
+              to="/people"
+              className="ml-auto flex cursor-pointer items-center gap-1.5 border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-pt-ink-soft transition-colors duration-150 hover:text-pt-ink"
+            >
+              <Users className="h-4 w-4" aria-hidden="true" strokeWidth={1.75} />
+              People
+            </Link>
           </div>
         </div>
       </header>
@@ -136,27 +128,6 @@ export default function Search() {
                   <p className="font-medium text-pt-ink">{r.name}</p>
                   <p className="text-sm text-pt-ink-soft">{r.area} · {r.aggregates.recCount} recs</p>
                 </div>
-              </Link>
-            ))}
-          </div>
-        )}
-
-        {tab === "people" && (
-          <div className="space-y-3 px-4 py-4">
-            {peopleResults.map((p) => (
-              <Link
-                key={p.uid}
-                to={`/u/${p.username}`}
-                className="flex cursor-pointer items-center gap-3 rounded-xl border border-pt-border bg-white px-4 py-3 transition-colors duration-150 hover:border-pt-primary/40"
-              >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-pt-surface-3 text-sm font-semibold text-pt-ink-soft">
-                  {p.displayName.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase()}
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-pt-ink">{p.displayName}</p>
-                  <p className="truncate text-sm text-pt-ink-soft">@{p.username}</p>
-                </div>
-                <TrustBadge tier={p.tier} className="ml-auto shrink-0" />
               </Link>
             ))}
           </div>

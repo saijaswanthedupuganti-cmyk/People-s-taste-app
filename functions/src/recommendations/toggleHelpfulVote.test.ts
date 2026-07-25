@@ -22,6 +22,7 @@ describe("toggleHelpfulVoteHandler", () => {
       helpfulVoteCount: 0,
       status: "active",
       proofUrl: null,
+      photo: null,
       createdAt: Date.now(),
     });
     users.set("author1", {
@@ -34,6 +35,7 @@ describe("toggleHelpfulVoteHandler", () => {
       recCount: 1,
       verifiedRecCount: 0,
       weightedHelpfulReceived: 0,
+      homeArea: null,
       createdAt: FIXED_NOW,
     });
     users.set("voter1", {
@@ -46,6 +48,7 @@ describe("toggleHelpfulVoteHandler", () => {
       recCount: 0,
       verifiedRecCount: 0,
       weightedHelpfulReceived: 0,
+      homeArea: null,
       createdAt: FIXED_NOW,
     });
 
@@ -74,6 +77,7 @@ describe("toggleHelpfulVoteHandler", () => {
       helpfulVoteCount: 0,
       status: "active",
       proofUrl: null,
+      photo: null,
       createdAt: Date.now(),
     });
     users.set("author1", {
@@ -86,6 +90,7 @@ describe("toggleHelpfulVoteHandler", () => {
       recCount: 1,
       verifiedRecCount: 0,
       weightedHelpfulReceived: 0,
+      homeArea: null,
       createdAt: FIXED_NOW,
     });
     users.set("voter1", {
@@ -98,6 +103,7 @@ describe("toggleHelpfulVoteHandler", () => {
       recCount: 0,
       verifiedRecCount: 0,
       weightedHelpfulReceived: 0,
+      homeArea: null,
       createdAt: FIXED_NOW,
     });
     await toggleHelpfulVoteHandler("rec1", "voter1", store, FIXED_NOW);
@@ -127,6 +133,7 @@ describe("toggleHelpfulVoteHandler", () => {
       helpfulVoteCount: 0,
       status: "active",
       proofUrl: null,
+      photo: null,
       createdAt: Date.now(),
     });
     users.set("author1", {
@@ -139,6 +146,7 @@ describe("toggleHelpfulVoteHandler", () => {
       recCount: 1,
       verifiedRecCount: 0,
       weightedHelpfulReceived: 0,
+      homeArea: null,
       createdAt: FIXED_NOW,
     });
     users.set("voter1", {
@@ -151,6 +159,7 @@ describe("toggleHelpfulVoteHandler", () => {
       recCount: 0,
       verifiedRecCount: 0,
       weightedHelpfulReceived: 0,
+      homeArea: null,
       createdAt: FIXED_NOW,
     });
     users.set("voter2", {
@@ -163,6 +172,7 @@ describe("toggleHelpfulVoteHandler", () => {
       recCount: 0,
       verifiedRecCount: 0,
       weightedHelpfulReceived: 0,
+      homeArea: null,
       createdAt: FIXED_NOW,
     });
     await toggleHelpfulVoteHandler("rec1", "voter1", store, FIXED_NOW);
@@ -191,6 +201,7 @@ describe("toggleHelpfulVoteHandler", () => {
       helpfulVoteCount: 0,
       status: "active",
       proofUrl: null,
+      photo: null,
       createdAt: Date.now(),
     });
 
