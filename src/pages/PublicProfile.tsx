@@ -53,7 +53,7 @@ export default function PublicProfile() {
         <h1 className="truncate font-display text-base font-semibold text-pt-ink">@{author.username}</h1>
       </header>
 
-      <div className="mx-auto max-w-2xl px-4 py-6">
+      <div className="mx-auto max-w-2xl px-4 py-6 md:max-w-4xl lg:max-w-6xl">
         <div className="flex items-center gap-4">
           <span className="flex h-16 w-16 items-center justify-center rounded-full bg-pt-surface-3 text-xl font-semibold text-pt-ink-soft">
             {author.displayName.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase()}
@@ -69,7 +69,7 @@ export default function PublicProfile() {
         )}
 
         <h3 className="mt-6 font-display text-lg font-semibold text-pt-ink">Recommendations</h3>
-        <div className="mt-3 space-y-4">
+        <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 lg:grid-cols-3">
           {recs.map((rec) => (
             <RecommendationCard key={rec.id} rec={rec} />
           ))}
