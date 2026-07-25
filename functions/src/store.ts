@@ -18,19 +18,31 @@ export interface Store {
   incrementRestaurantRecCount(id: string): Promise<void>;
   createRecommendation(input: NewRecommendationInput): Promise<string>;
   getRecommendation(id: string): Promise<RecommendationRecord | null>;
+  countRecentRecommendationsByAuthor(authorId: string, sinceMs: number): Promise<number>;
+  getRecentGeoTaggedRecommendation(authorId: string): Promise<{ geoAtPost: { lat: number; lng: number }; createdAt: number } | null>;
   getSave(id: string): Promise<boolean>;
   createSave(id: string, uid: string, recId: string): Promise<void>;
   deleteSave(id: string): Promise<void>;
   getVote(recId: string, voterUid: string): Promise<VoteRecord | null>;
   createVote(recId: string, voterUid: string, weight: number): Promise<void>;
   deleteVote(recId: string, voterUid: string): Promise<void>;
+  countRecentVotesByVoter(voterUid: string, sinceMs: number): Promise<number>;
   applyHelpfulDelta(recId: string, weightedHelpfulDelta: number, voteCountDelta: number): Promise<void>;
   getUser(id: string): Promise<UserRecord | null>;
-  createUser(input: NewUserInput): Promise<void>;
+  createUser(input: NewUserInput, now: number): Promise<void>;
   incrementUserRecCount(id: string, verified: boolean): Promise<void>;
   applyHelpfulReceivedDelta(id: string, delta: number): Promise<void>;
-  updateUserTrust(id: string, trustScore: number, tier: Tier): Promise<void>;
+  updateUserTrust(
+    id: string,
+    trustScore: number,
+    tier: Tier,
+    tierHistory: { tier: Tier; enteredAt: number }[],
+    voteWeightPenaltyUntil: number | null,
+  ): Promise<void>;
   updateUserHomeArea(id: string, homeArea: string): Promise<void>;
+  createBlock(blockerUid: string, blockedUid: string, now: number): Promise<void>;
+  deleteBlock(blockerUid: string, blockedUid: string): Promise<void>;
+  getBlock(blockerUid: string, blockedUid: string): Promise<boolean>;
 }
 
 // Real Firestore-backed implementation. Deliberately thin - every method is a
@@ -98,10 +110,13 @@ export class FirestoreStore implements Store {
       primarySignal: input.primarySignal,
       caption: input.caption,
       verificationLevel: input.verificationLevel,
+      verificationMultiplier: input.verificationMultiplier,
       trustSnapshot: input.trustSnapshot,
       weightedHelpful: 0,
       helpfulVoteCount: 0,
-      status: "active",
+      status: "live",
+      geoMismatch: input.geoMismatch,
+      geoAtPost: input.geoAtPost,
       proofUrl: input.proofUrl,
       photo: input.photo,
       createdAt: FieldValue.serverTimestamp(),
@@ -120,6 +135,34 @@ export class FirestoreStore implements Store {
     };
   }
 
+  async countRecentRecommendationsByAuthor(authorId: string, sinceMs: number): Promise<number> {
+    const snap = await this.db
+      .collection("recommendations")
+      .where("authorId", "==", authorId)
+      .where("createdAt", ">", Timestamp.fromMillis(sinceMs))
+      .count()
+      .get();
+    return snap.data().count;
+  }
+
+  async getRecentGeoTaggedRecommendation(
+    authorId: string,
+  ): Promise<{ geoAtPost: { lat: number; lng: number }; createdAt: number } | null> {
+    const snap = await this.db
+      .collection("recommendations")
+      .where("authorId", "==", authorId)
+      .orderBy("createdAt", "desc")
+      .limit(5)
+      .get();
+    for (const doc of snap.docs) {
+      const data = doc.data() as RecommendationRecord;
+      if (data.geoAtPost) {
+        return { geoAtPost: data.geoAtPost, createdAt: (doc.data().createdAt as Timestamp).toMillis() };
+      }
+    }
+    return null;
+  }
+
   async getSave(id: string): Promise<boolean> {
     const doc = await this.db.collection("saves").doc(id).get();
     return doc.exists;
@@ -136,7 +179,8 @@ export class FirestoreStore implements Store {
   async getVote(recId: string, voterUid: string): Promise<VoteRecord | null> {
     const doc = await this.db.collection("recommendations").doc(recId).collection("votes").doc(voterUid).get();
     if (!doc.exists) return null;
-    return doc.data() as VoteRecord;
+    const data = doc.data()!;
+    return { ...(data as Omit<VoteRecord, "createdAt">), createdAt: (data.createdAt as Timestamp).toMillis() };
   }
 
   async createVote(recId: string, voterUid: string, weight: number): Promise<void> {
@@ -145,11 +189,21 @@ export class FirestoreStore implements Store {
       .doc(recId)
       .collection("votes")
       .doc(voterUid)
-      .set({ weight, createdAt: FieldValue.serverTimestamp() });
+      .set({ voterUid, weight, createdAt: FieldValue.serverTimestamp() });
   }
 
   async deleteVote(recId: string, voterUid: string): Promise<void> {
     await this.db.collection("recommendations").doc(recId).collection("votes").doc(voterUid).delete();
+  }
+
+  async countRecentVotesByVoter(voterUid: string, sinceMs: number): Promise<number> {
+    const snap = await this.db
+      .collectionGroup("votes")
+      .where("voterUid", "==", voterUid)
+      .where("createdAt", ">", Timestamp.fromMillis(sinceMs))
+      .count()
+      .get();
+    return snap.data().count;
   }
 
   async applyHelpfulDelta(recId: string, weightedHelpfulDelta: number, voteCountDelta: number): Promise<void> {
@@ -170,7 +224,7 @@ export class FirestoreStore implements Store {
     };
   }
 
-  async createUser(input: NewUserInput): Promise<void> {
+  async createUser(input: NewUserInput, now: number): Promise<void> {
     await this.db.collection("users").doc(input.id).set({
       username: input.username,
       displayName: input.displayName,
@@ -181,6 +235,8 @@ export class FirestoreStore implements Store {
       verifiedRecCount: 0,
       weightedHelpfulReceived: 0,
       homeArea: null,
+      tierHistory: [{ tier: "explorer", enteredAt: now }],
+      voteWeightPenaltyUntil: null,
       createdAt: FieldValue.serverTimestamp(),
     });
   }
@@ -197,11 +253,33 @@ export class FirestoreStore implements Store {
     });
   }
 
-  async updateUserTrust(id: string, trustScore: number, tier: Tier): Promise<void> {
-    await this.db.collection("users").doc(id).update({ trustScore, tier });
+  async updateUserTrust(
+    id: string,
+    trustScore: number,
+    tier: Tier,
+    tierHistory: { tier: Tier; enteredAt: number }[],
+    voteWeightPenaltyUntil: number | null,
+  ): Promise<void> {
+    await this.db.collection("users").doc(id).update({ trustScore, tier, tierHistory, voteWeightPenaltyUntil });
   }
 
   async updateUserHomeArea(id: string, homeArea: string): Promise<void> {
     await this.db.collection("users").doc(id).update({ homeArea });
+  }
+
+  async createBlock(blockerUid: string, blockedUid: string, now: number): Promise<void> {
+    await this.db
+      .collection("blocks")
+      .doc(`${blockerUid}_${blockedUid}`)
+      .set({ blockerUid, blockedUid, createdAt: Timestamp.fromMillis(now) });
+  }
+
+  async deleteBlock(blockerUid: string, blockedUid: string): Promise<void> {
+    await this.db.collection("blocks").doc(`${blockerUid}_${blockedUid}`).delete();
+  }
+
+  async getBlock(blockerUid: string, blockedUid: string): Promise<boolean> {
+    const doc = await this.db.collection("blocks").doc(`${blockerUid}_${blockedUid}`).get();
+    return doc.exists;
   }
 }

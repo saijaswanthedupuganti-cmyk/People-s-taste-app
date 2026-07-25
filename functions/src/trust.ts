@@ -51,3 +51,48 @@ function tierForScore(score: number): Tier {
   }
   return "explorer";
 }
+
+const TIER_ORDER: Tier[] = ["explorer", "local_foodie", "verified_foodie", "neighborhood_expert", "city_expert", "legend"];
+const THIRTY_DAYS_MS = 30 * MS_PER_DAY;
+const SIXTY_DAYS_MS = 60 * MS_PER_DAY;
+const MAX_TIER_HISTORY = 20;
+
+export interface TierHistoryEntry {
+  tier: Tier;
+  enteredAt: number;
+}
+
+export interface TierVelocityResult {
+  tierHistory: TierHistoryEntry[];
+  voteWeightPenaltyUntil: number | null;
+}
+
+// §9.3 trust-velocity check: a "slow-burn" farming account posts genuinely for weeks, earns
+// trust, then sells its now-high-weight votes. Distinguishes earned-slowly from
+// earned-just-fast-enough by watching the tier *curve*, not just its current value — if trust
+// climbs two tiers within 30 days, that account's cast votes count at half weight for the
+// following 60 days. Never blocks or demotes the account itself, only discounts its influence
+// on OTHER people's rankings; a genuine fast riser just eats a temporary discount.
+export function updateTierHistory(
+  history: TierHistoryEntry[],
+  newTier: Tier,
+  now: number,
+  currentPenaltyUntil: number | null,
+): TierVelocityResult {
+  const lastEntry = history[history.length - 1];
+  const tierChanged = !lastEntry || lastEntry.tier !== newTier;
+  const nextHistory = tierChanged
+    ? [...history, { tier: newTier, enteredAt: now }].slice(-MAX_TIER_HISTORY)
+    : history;
+
+  if (!tierChanged) {
+    return { tierHistory: nextHistory, voteWeightPenaltyUntil: currentPenaltyUntil };
+  }
+
+  const baselineEntry = [...nextHistory].reverse().find((h) => h.enteredAt <= now - THIRTY_DAYS_MS);
+  const baselineTier = baselineEntry?.tier ?? nextHistory[0]?.tier ?? newTier;
+  const tiersClimbed = TIER_ORDER.indexOf(newTier) - TIER_ORDER.indexOf(baselineTier);
+
+  const voteWeightPenaltyUntil = tiersClimbed >= 2 ? now + SIXTY_DAYS_MS : currentPenaltyUntil;
+  return { tierHistory: nextHistory, voteWeightPenaltyUntil };
+}

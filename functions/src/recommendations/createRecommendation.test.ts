@@ -29,6 +29,8 @@ describe("createRecommendationHandler", () => {
       verifiedRecCount: 0,
       weightedHelpfulReceived: 0,
       homeArea: null,
+      tierHistory: [],
+      voteWeightPenaltyUntil: null,
       createdAt: FIXED_NOW,
     });
 

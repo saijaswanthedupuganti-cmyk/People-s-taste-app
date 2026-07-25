@@ -1,5 +1,10 @@
 import type { Store } from "../store.js";
-import { computeTrust } from "../trust.js";
+import { computeTrust, updateTierHistory } from "../trust.js";
+
+// §14 velocity limit: max 30 Helpful votes/minute per voter. Only gates casting a new vote —
+// removing one is always allowed, since it can't be used to spam influence.
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX_VOTES = 30;
 
 export async function toggleHelpfulVoteHandler(
   recId: string,
@@ -20,8 +25,16 @@ export async function toggleHelpfulVoteHandler(
     return { voted: false, weightedHelpful: updated!.weightedHelpful, helpfulVoteCount: updated!.helpfulVoteCount };
   }
 
+  const recentVotes = await store.countRecentVotesByVoter(voterUid, now - RATE_LIMIT_WINDOW_MS);
+  if (recentVotes >= RATE_LIMIT_MAX_VOTES) {
+    throw new Error("Too many votes too fast — try again in a minute.");
+  }
+
   const voter = await store.getUser(voterUid);
-  const weight = (voter?.trustScore ?? 10) / 100;
+  // §9.3 trust velocity: an account that climbed two tiers within 30 days has its votes
+  // weighted at half for 60 days — discounts influence, never blocks the vote itself.
+  const isPenalized = !!voter?.voteWeightPenaltyUntil && voter.voteWeightPenaltyUntil > now;
+  const weight = ((voter?.trustScore ?? 10) / 100) * (isPenalized ? 0.5 : 1);
   await store.createVote(recId, voterUid, weight);
   await store.applyHelpfulDelta(recId, weight, 1);
   await recomputeAuthorTrust(rec.authorId, weight, store, now);
@@ -42,5 +55,11 @@ async function recomputeAuthorTrust(authorId: string, weightDelta: number, store
     verifiedRecCount: updated!.verifiedRecCount,
     weightedHelpfulReceived: updated!.weightedHelpfulReceived,
   });
-  await store.updateUserTrust(authorId, score, tier);
+  const { tierHistory, voteWeightPenaltyUntil } = updateTierHistory(
+    updated!.tierHistory,
+    tier,
+    now,
+    updated!.voteWeightPenaltyUntil,
+  );
+  await store.updateUserTrust(authorId, score, tier, tierHistory, voteWeightPenaltyUntil);
 }

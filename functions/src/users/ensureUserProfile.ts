@@ -13,17 +13,24 @@ function usernameFromEmail(email: string, fallbackUid: string): string {
   return localPart.length > 0 ? localPart : fallbackUid.slice(0, 8);
 }
 
-export async function ensureUserProfileHandler(input: EnsureUserProfileInput, store: Store): Promise<UserRecord> {
+export async function ensureUserProfileHandler(
+  input: EnsureUserProfileInput,
+  store: Store,
+  now: number,
+): Promise<UserRecord> {
   const existing = await store.getUser(input.uid);
   if (existing) return existing;
 
   const username = usernameFromEmail(input.email, input.uid);
-  await store.createUser({
-    id: input.uid,
-    username,
-    displayName: input.displayName || username,
-    photoURL: input.photoURL,
-  });
+  await store.createUser(
+    {
+      id: input.uid,
+      username,
+      displayName: input.displayName || username,
+      photoURL: input.photoURL,
+    },
+    now,
+  );
 
   const created = await store.getUser(input.uid);
   return created!;

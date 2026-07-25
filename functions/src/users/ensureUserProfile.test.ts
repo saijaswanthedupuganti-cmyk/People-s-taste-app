@@ -9,6 +9,7 @@ describe("ensureUserProfileHandler", () => {
     const result = await ensureUserProfileHandler(
       { uid: "u1", displayName: "Priyanka R.", photoURL: "https://example.com/p.jpg", email: "priyanka.eats@gmail.com" },
       store,
+      Date.now(),
     );
 
     expect(result.username).toBe("priyanka.eats");
@@ -23,11 +24,13 @@ describe("ensureUserProfileHandler", () => {
     const first = await ensureUserProfileHandler(
       { uid: "u1", displayName: "Priyanka R.", photoURL: "", email: "priyanka.eats@gmail.com" },
       store,
+      Date.now(),
     );
 
     const second = await ensureUserProfileHandler(
       { uid: "u1", displayName: "A different name", photoURL: "", email: "priyanka.eats@gmail.com" },
       store,
+      Date.now(),
     );
 
     expect(second.displayName).toBe(first.displayName);
@@ -40,6 +43,7 @@ describe("ensureUserProfileHandler", () => {
     const result = await ensureUserProfileHandler(
       { uid: "u2", displayName: "Arjun+Test", photoURL: "", email: "arjun+test.99@gmail.com" },
       store,
+      Date.now(),
     );
 
     expect(result.username).toBe("arjuntest.99");

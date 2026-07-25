@@ -16,6 +16,8 @@ describe("updateHomeAreaHandler", () => {
       verifiedRecCount: 0,
       weightedHelpfulReceived: 0,
       homeArea: null,
+      tierHistory: [],
+      voteWeightPenaltyUntil: null,
       createdAt: Date.now(),
     });
 
@@ -38,6 +40,8 @@ describe("updateHomeAreaHandler", () => {
       verifiedRecCount: 0,
       weightedHelpfulReceived: 0,
       homeArea: null,
+      tierHistory: [],
+      voteWeightPenaltyUntil: null,
       createdAt: Date.now(),
     });
 

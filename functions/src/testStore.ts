@@ -1,4 +1,5 @@
 import type {
+  BlockRecord,
   NewRecommendationInput,
   NewRestaurantInput,
   NewUserInput,
@@ -20,6 +21,7 @@ export function createTestStore() {
   const saves = new Set<string>();
   const votes = new Map<string, VoteRecord>(); // key: `${recId}_${voterUid}`
   const users = new Map<string, UserRecord>();
+  const blocks = new Map<string, BlockRecord>(); // key: `${blockerUid}_${blockedUid}`
 
   const store: Store = {
     async getRestaurant(id) {
@@ -59,10 +61,13 @@ export function createTestStore() {
         primarySignal: input.primarySignal,
         caption: input.caption,
         verificationLevel: input.verificationLevel,
+        verificationMultiplier: input.verificationMultiplier,
         trustSnapshot: input.trustSnapshot,
         weightedHelpful: 0,
         helpfulVoteCount: 0,
-        status: "active",
+        status: "live",
+        geoMismatch: input.geoMismatch,
+        geoAtPost: input.geoAtPost,
         proofUrl: input.proofUrl,
         photo: input.photo,
         createdAt: Date.now(),
@@ -71,6 +76,18 @@ export function createTestStore() {
     },
     async getRecommendation(id) {
       return recommendations.get(id) ?? null;
+    },
+    async countRecentRecommendationsByAuthor(authorId, sinceMs) {
+      return [...recommendations.values()].filter((r) => r.authorId === authorId && r.createdAt > sinceMs).length;
+    },
+    async getRecentGeoTaggedRecommendation(authorId) {
+      const authored = [...recommendations.values()]
+        .filter((r) => r.authorId === authorId)
+        .sort((a, b) => b.createdAt - a.createdAt);
+      for (const rec of authored) {
+        if (rec.geoAtPost) return { geoAtPost: rec.geoAtPost, createdAt: rec.createdAt };
+      }
+      return null;
     },
     async getSave(id) {
       return saves.has(id);
@@ -85,10 +102,13 @@ export function createTestStore() {
       return votes.get(`${recId}_${voterUid}`) ?? null;
     },
     async createVote(recId, voterUid, weight) {
-      votes.set(`${recId}_${voterUid}`, { weight });
+      votes.set(`${recId}_${voterUid}`, { voterUid, weight, createdAt: Date.now() });
     },
     async deleteVote(recId, voterUid) {
       votes.delete(`${recId}_${voterUid}`);
+    },
+    async countRecentVotesByVoter(voterUid, sinceMs) {
+      return [...votes.values()].filter((v) => v.voterUid === voterUid && v.createdAt > sinceMs).length;
     },
     async applyHelpfulDelta(recId, weightedHelpfulDelta, voteCountDelta) {
       const rec = recommendations.get(recId);
@@ -99,7 +119,7 @@ export function createTestStore() {
     async getUser(id) {
       return users.get(id) ?? null;
     },
-    async createUser(input: NewUserInput) {
+    async createUser(input: NewUserInput, now: number) {
       users.set(input.id, {
         id: input.id,
         username: input.username,
@@ -111,7 +131,9 @@ export function createTestStore() {
         verifiedRecCount: 0,
         weightedHelpfulReceived: 0,
         homeArea: null,
-        createdAt: Date.now(),
+        tierHistory: [{ tier: "explorer", enteredAt: now }],
+        voteWeightPenaltyUntil: null,
+        createdAt: now,
       });
     },
     async incrementUserRecCount(id, verified) {
@@ -125,18 +147,29 @@ export function createTestStore() {
       if (!u) return;
       u.weightedHelpfulReceived += delta;
     },
-    async updateUserTrust(id, trustScore, tier) {
+    async updateUserTrust(id, trustScore, tier, tierHistory, voteWeightPenaltyUntil) {
       const u = users.get(id);
       if (!u) return;
       u.trustScore = trustScore;
       u.tier = tier;
+      u.tierHistory = tierHistory;
+      u.voteWeightPenaltyUntil = voteWeightPenaltyUntil;
     },
     async updateUserHomeArea(id, homeArea) {
       const u = users.get(id);
       if (!u) return;
       u.homeArea = homeArea;
     },
+    async createBlock(blockerUid, blockedUid, now) {
+      blocks.set(`${blockerUid}_${blockedUid}`, { blockerUid, blockedUid, createdAt: now });
+    },
+    async deleteBlock(blockerUid, blockedUid) {
+      blocks.delete(`${blockerUid}_${blockedUid}`);
+    },
+    async getBlock(blockerUid, blockedUid) {
+      return blocks.has(`${blockerUid}_${blockedUid}`);
+    },
   };
 
-  return { store, restaurants, recommendations, users };
+  return { store, restaurants, recommendations, users, votes, blocks };
 }

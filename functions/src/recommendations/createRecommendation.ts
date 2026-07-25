@@ -1,11 +1,25 @@
 import type { Store } from "../store.js";
 import { haversineMeters } from "../geo.js";
-import { computeTrust } from "../trust.js";
+import { computeTrust, updateTierHistory } from "../trust.js";
 
 const GPS_VERIFICATION_RADIUS_METERS = 100;
 const COMMUNITY_PLACE_DEDUPE_RADIUS_METERS = 150;
 const PROOF_URL_HOSTS = ["youtube.com", "www.youtube.com", "youtu.be", "instagram.com", "www.instagram.com"];
 const PHOTO_URL_HOSTS = ["firebasestorage.googleapis.com", "storage.googleapis.com"];
+const VERIFICATION_MULTIPLIER: Record<1 | 2, number> = { 1: 1.0, 2: 1.3 };
+
+// §14 velocity limit: max 5 recommendations/hour per author.
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const RATE_LIMIT_MAX_RECS = 5;
+
+// §10/§14 geo-mismatch: GPS claimed at post time is implausibly far from the restaurant
+// itself (different city/country) — not a missed L2 bonus, a suspicious claim.
+const GEO_MISMATCH_DISTANCE_METERS = 50_000;
+
+// §14 impossible-travel check: same account posting geo-tagged recs farther apart than
+// plausible travel time allows. Generous car/highway speed, not flight speed — the doc's own
+// example (Secunderabad <-> Banjara Hills "within minutes") is a same-city distance.
+const IMPLAUSIBLE_SPEED_KMH = 120;
 
 export interface CreateRecommendationInput {
   authorId: string;
@@ -71,6 +85,11 @@ export async function createRecommendationHandler(
   store: Store,
   now: number,
 ): Promise<CreateRecommendationResult> {
+  const recentCount = await store.countRecentRecommendationsByAuthor(input.authorId, now - RATE_LIMIT_WINDOW_MS);
+  if (recentCount >= RATE_LIMIT_MAX_RECS) {
+    throw new Error("You're posting a bit fast — try again in a few minutes.");
+  }
+
   const caption = input.caption.trim();
   if (caption.length < 10 || caption.length > 500) {
     throw new Error("caption must be between 10 and 500 characters");
@@ -128,6 +147,7 @@ export async function createRecommendationHandler(
   }
 
   let verificationLevel: 1 | 2 = 1;
+  let geoMismatch = false;
   if (input.userLocation && restaurantLocation) {
     const distance = haversineMeters(
       input.userLocation.lat,
@@ -136,6 +156,22 @@ export async function createRecommendationHandler(
       restaurantLocation.lng,
     );
     if (distance <= GPS_VERIFICATION_RADIUS_METERS) verificationLevel = 2;
+    if (distance > GEO_MISMATCH_DISTANCE_METERS) geoMismatch = true;
+  }
+
+  if (input.userLocation && !geoMismatch) {
+    const lastGeoTagged = await store.getRecentGeoTaggedRecommendation(input.authorId);
+    if (lastGeoTagged) {
+      const deltaMs = now - lastGeoTagged.createdAt;
+      const distanceMeters = haversineMeters(
+        input.userLocation.lat,
+        input.userLocation.lng,
+        lastGeoTagged.geoAtPost.lat,
+        lastGeoTagged.geoAtPost.lng,
+      );
+      const impliedSpeedKmh = deltaMs > 0 ? distanceMeters / 1000 / (deltaMs / 3_600_000) : Infinity;
+      if (impliedSpeedKmh > IMPLAUSIBLE_SPEED_KMH) geoMismatch = true;
+    }
   }
 
   const author = await store.getUser(input.authorId);
@@ -150,7 +186,10 @@ export async function createRecommendationHandler(
     primarySignal: input.primarySignal,
     caption,
     verificationLevel,
+    verificationMultiplier: VERIFICATION_MULTIPLIER[verificationLevel],
     trustSnapshot,
+    geoMismatch,
+    geoAtPost: input.userLocation ?? null,
     proofUrl,
     photo,
   });
@@ -167,7 +206,13 @@ export async function createRecommendationHandler(
       verifiedRecCount: updatedAuthor!.verifiedRecCount,
       weightedHelpfulReceived: updatedAuthor!.weightedHelpfulReceived,
     });
-    await store.updateUserTrust(input.authorId, score, tier);
+    const { tierHistory, voteWeightPenaltyUntil } = updateTierHistory(
+      updatedAuthor!.tierHistory,
+      tier,
+      now,
+      updatedAuthor!.voteWeightPenaltyUntil,
+    );
+    await store.updateUserTrust(input.authorId, score, tier, tierHistory, voteWeightPenaltyUntil);
   }
 
   return { recommendationId, restaurantId, verificationLevel };
