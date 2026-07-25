@@ -54,6 +54,8 @@ export interface Recommendation {
   weightedHelpful: number;
   /** Plain count of Helpful votes — this is what the UI displays. */
   helpfulVoteCount: number;
+  /** Optional YouTube/Instagram link the author attaches as manual proof — not tied to verificationLevel. */
+  proofUrl: string | null;
   createdAt: string;
 }
 

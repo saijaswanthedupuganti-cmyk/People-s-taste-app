@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 import Search from "./pages/Search";
 import RecommendationDetail from "./pages/RecommendationDetail";
 import RestaurantProfile from "./pages/RestaurantProfile";
+import People from "./pages/People";
 import PublicProfile from "./pages/PublicProfile";
 import Post from "./pages/Post";
 import Saved from "./pages/Saved";
@@ -29,6 +30,7 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Home />} />
             <Route path="/search" element={<Search />} />
+            <Route path="/people" element={<People />} />
             <Route path="/rec/:id" element={<RecommendationDetail />} />
             <Route path="/place/:id" element={<RestaurantProfile />} />
             <Route path="/u/:username" element={<PublicProfile />} />

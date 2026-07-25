@@ -258,6 +258,103 @@ describe("createRecommendationHandler", () => {
     ).rejects.toThrow(/restaurant/i);
   });
 
+  it("accepts a YouTube proof link and stores it verbatim", async () => {
+    const { store, restaurants } = createTestStore();
+    restaurants.set("r1", {
+      id: "r1",
+      name: "Shah Ghouse",
+      source: "google",
+      location: { lat: 17.3999, lng: 78.4118 },
+      area: "Tolichowki",
+      city: "Hyderabad",
+      aggregates: { recCount: 0 },
+      createdBy: "seed",
+      createdAt: Date.now(),
+    });
+
+    const result = await createRecommendationHandler(
+      {
+        authorId: "u1",
+        restaurantId: "r1",
+        dishName: "Mutton Biryani",
+        mealTags: ["dinner"],
+        signalTags: [],
+        primarySignal: "recommend",
+        caption: "Great biryani here.",
+        proofUrl: "https://youtu.be/dQw4w9WgXcQ",
+      },
+      store,
+      FIXED_NOW,
+    );
+
+    const rec = await store.getRecommendation(result.recommendationId);
+    expect(rec?.proofUrl).toBe("https://youtu.be/dQw4w9WgXcQ");
+  });
+
+  it("stores a null proofUrl when none is given", async () => {
+    const { store, restaurants } = createTestStore();
+    restaurants.set("r1", {
+      id: "r1",
+      name: "Shah Ghouse",
+      source: "google",
+      location: { lat: 17.3999, lng: 78.4118 },
+      area: "Tolichowki",
+      city: "Hyderabad",
+      aggregates: { recCount: 0 },
+      createdBy: "seed",
+      createdAt: Date.now(),
+    });
+
+    const result = await createRecommendationHandler(
+      {
+        authorId: "u1",
+        restaurantId: "r1",
+        dishName: "Mutton Biryani",
+        mealTags: ["dinner"],
+        signalTags: [],
+        primarySignal: "recommend",
+        caption: "Great biryani here.",
+      },
+      store,
+      FIXED_NOW,
+    );
+
+    const rec = await store.getRecommendation(result.recommendationId);
+    expect(rec?.proofUrl).toBeNull();
+  });
+
+  it("rejects a proof link that isn't YouTube or Instagram", async () => {
+    const { store, restaurants } = createTestStore();
+    restaurants.set("r1", {
+      id: "r1",
+      name: "Shah Ghouse",
+      source: "google",
+      location: { lat: 17.3999, lng: 78.4118 },
+      area: "Tolichowki",
+      city: "Hyderabad",
+      aggregates: { recCount: 0 },
+      createdBy: "seed",
+      createdAt: Date.now(),
+    });
+
+    await expect(
+      createRecommendationHandler(
+        {
+          authorId: "u1",
+          restaurantId: "r1",
+          dishName: "Mutton Biryani",
+          mealTags: ["dinner"],
+          signalTags: [],
+          primarySignal: "recommend",
+          caption: "Great biryani here.",
+          proofUrl: "https://example.com/some-video",
+        },
+        store,
+        FIXED_NOW,
+      ),
+    ).rejects.toThrow(/YouTube or Instagram/i);
+  });
+
   it("falls back to trust score 10 when the author has no profile doc yet", async () => {
     const { store, restaurants } = createTestStore();
     restaurants.set("r1", {

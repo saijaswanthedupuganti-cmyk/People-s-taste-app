@@ -4,6 +4,7 @@ import { computeTrust } from "../trust.js";
 
 const GPS_VERIFICATION_RADIUS_METERS = 100;
 const COMMUNITY_PLACE_DEDUPE_RADIUS_METERS = 150;
+const PROOF_URL_HOSTS = ["youtube.com", "www.youtube.com", "youtu.be", "instagram.com", "www.instagram.com"];
 
 export interface CreateRecommendationInput {
   authorId: string;
@@ -20,6 +21,24 @@ export interface CreateRecommendationInput {
   primarySignal: "recommend" | "must_try";
   caption: string;
   userLocation?: { lat: number; lng: number };
+  proofUrl?: string | null;
+}
+
+// Manual proof link only (§ per-post verification) — not tied to verificationLevel/trust,
+// just an outbound link the author can attach as evidence, shown as-is on the post.
+function normalizeProofUrl(proofUrl: string | null | undefined): string | null {
+  const trimmed = proofUrl?.trim();
+  if (!trimmed) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new Error("proofUrl must be a valid URL");
+  }
+  if (!PROOF_URL_HOSTS.includes(parsed.hostname.toLowerCase())) {
+    throw new Error("proofUrl must be a YouTube or Instagram link");
+  }
+  return parsed.toString();
 }
 
 export interface CreateRecommendationResult {
@@ -37,6 +56,7 @@ export async function createRecommendationHandler(
   if (caption.length < 10 || caption.length > 500) {
     throw new Error("caption must be between 10 and 500 characters");
   }
+  const proofUrl = normalizeProofUrl(input.proofUrl);
 
   let restaurantId: string;
   let restaurantLocation: { lat: number; lng: number } | null = null;
@@ -111,6 +131,7 @@ export async function createRecommendationHandler(
     caption,
     verificationLevel,
     trustSnapshot,
+    proofUrl,
   });
 
   await store.incrementRestaurantRecCount(restaurantId);

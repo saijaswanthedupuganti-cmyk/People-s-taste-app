@@ -123,6 +123,18 @@ function RecommendationDetailContent({ rec }: { rec: Recommendation }) {
             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" strokeWidth={2} />
           </a>
 
+          {rec.proofUrl && (
+            <a
+              href={rec.proofUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 flex cursor-pointer items-center gap-1.5 text-sm font-medium text-pt-primary hover:underline"
+            >
+              {rec.proofUrl.includes("instagram.com") ? "View proof on Instagram" : "Watch proof on YouTube"}
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" strokeWidth={2} />
+            </a>
+          )}
+
           <div className="mt-6 flex items-center gap-3 border-t border-pt-border pt-4">
             <button
               type="button"

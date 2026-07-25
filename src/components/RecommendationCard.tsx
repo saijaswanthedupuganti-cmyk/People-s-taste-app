@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Bookmark, Flame, ThumbsUp } from "lucide-react";
+import { Bookmark, ExternalLink, Flame, ThumbsUp } from "lucide-react";
 import type { Recommendation } from "../types";
 import { MEAL_LABEL } from "../types";
 import TrustBadge from "./TrustBadge";
@@ -71,6 +71,18 @@ export default function RecommendationCard({ rec }: { rec: Recommendation }) {
         </Link>
 
         <div className="flex shrink-0 items-center gap-3">
+          {rec.proofUrl && (
+            <a
+              href={rec.proofUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={rec.proofUrl.includes("instagram.com") ? "View proof on Instagram" : "Watch proof on YouTube"}
+              onClick={(e) => e.stopPropagation()}
+              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-pt-ink-soft transition-colors duration-150 hover:bg-pt-surface-2 hover:text-pt-primary"
+            >
+              <ExternalLink className="h-4 w-4" aria-hidden="true" strokeWidth={1.75} />
+            </a>
+          )}
           <VerificationBadge level={rec.verificationLevel} />
           <button
             type="button"

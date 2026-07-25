@@ -21,6 +21,7 @@ describe("toggleHelpfulVoteHandler", () => {
       weightedHelpful: 0,
       helpfulVoteCount: 0,
       status: "active",
+      proofUrl: null,
       createdAt: Date.now(),
     });
     users.set("author1", {
@@ -72,6 +73,7 @@ describe("toggleHelpfulVoteHandler", () => {
       weightedHelpful: 0,
       helpfulVoteCount: 0,
       status: "active",
+      proofUrl: null,
       createdAt: Date.now(),
     });
     users.set("author1", {
@@ -124,6 +126,7 @@ describe("toggleHelpfulVoteHandler", () => {
       weightedHelpful: 0,
       helpfulVoteCount: 0,
       status: "active",
+      proofUrl: null,
       createdAt: Date.now(),
     });
     users.set("author1", {
@@ -187,6 +190,7 @@ describe("toggleHelpfulVoteHandler", () => {
       weightedHelpful: 0,
       helpfulVoteCount: 0,
       status: "active",
+      proofUrl: null,
       createdAt: Date.now(),
     });
 

@@ -32,6 +32,7 @@ export interface RecommendationRecord {
   weightedHelpful: number;
   helpfulVoteCount: number;
   status: string;
+  proofUrl: string | null;
   createdAt: number;
 }
 
@@ -45,6 +46,7 @@ export interface NewRecommendationInput {
   caption: string;
   verificationLevel: 1 | 2;
   trustSnapshot: number;
+  proofUrl: string | null;
 }
 
 export interface VoteRecord {

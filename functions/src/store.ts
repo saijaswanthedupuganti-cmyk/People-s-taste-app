@@ -101,6 +101,7 @@ export class FirestoreStore implements Store {
       weightedHelpful: 0,
       helpfulVoteCount: 0,
       status: "active",
+      proofUrl: input.proofUrl,
       createdAt: FieldValue.serverTimestamp(),
     });
     return ref.id;

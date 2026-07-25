@@ -25,6 +25,8 @@ interface RawUser {
   displayName: string;
   photoURL: string;
   tier: Tier;
+  trustScore?: number;
+  recCount?: number;
 }
 
 interface RawRecommendation {
@@ -39,6 +41,7 @@ interface RawRecommendation {
   weightedHelpful: number;
   helpfulVoteCount: number;
   status: string;
+  proofUrl: string | null;
   createdAt: Timestamp;
 }
 
@@ -83,6 +86,7 @@ function toRecommendation(
     verificationLevel: raw.verificationLevel,
     weightedHelpful: raw.weightedHelpful,
     helpfulVoteCount: raw.helpfulVoteCount,
+    proofUrl: raw.proofUrl ?? null,
     createdAt: raw.createdAt.toDate().toISOString(),
   };
 }
@@ -161,6 +165,32 @@ export async function fetchRecommendationsForRestaurant(restaurantId: string): P
   const docs = recSnap.docs.map((d) => ({ id: d.id, data: d.data() as RawRecommendation }));
   const users = await fetchByIds<RawUser>("users", docs.map((d) => d.data.authorId));
   return docs.map((d) => toRecommendation(d.id, d.data, restaurant, users.get(d.data.authorId)));
+}
+
+export interface PersonSummary {
+  uid: string;
+  username: string;
+  displayName: string;
+  photoURL: string;
+  tier: Tier;
+  recCount: number;
+}
+
+export async function fetchPeople(limitCount = 50): Promise<PersonSummary[]> {
+  const snap = await getDocs(
+    query(collection(db, "users"), orderBy("trustScore", "desc"), limit(limitCount)),
+  );
+  return snap.docs.map((d) => {
+    const data = d.data() as RawUser;
+    return {
+      uid: d.id,
+      username: data.username,
+      displayName: data.displayName,
+      photoURL: data.photoURL,
+      tier: data.tier,
+      recCount: data.recCount ?? 0,
+    };
+  });
 }
 
 export async function fetchUserByUsername(

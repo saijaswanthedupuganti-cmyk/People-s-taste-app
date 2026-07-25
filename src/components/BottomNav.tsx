@@ -1,10 +1,11 @@
 import { NavLink } from "react-router-dom";
-import { Home, Search, PlusCircle, Bookmark, User } from "lucide-react";
+import { Home, Search, PlusCircle, Bookmark, Users, User } from "lucide-react";
 
 const ITEMS = [
   { to: "/", label: "Home", icon: Home, end: true },
   { to: "/search", label: "Search", icon: Search, end: false },
   { to: "/post", label: "Post", icon: PlusCircle, end: false },
+  { to: "/people", label: "People", icon: Users, end: false },
   { to: "/saved", label: "Saved", icon: Bookmark, end: false },
   { to: "/profile", label: "Profile", icon: User, end: false },
 ];

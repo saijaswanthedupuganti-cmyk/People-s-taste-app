@@ -48,6 +48,7 @@ export default function Post() {
   const [primarySignal, setPrimarySignal] = useState<PrimarySignal | null>(null);
   const [signalTags, setSignalTags] = useState<Set<SignalTag>>(new Set());
   const [caption, setCaption] = useState("");
+  const [proofUrl, setProofUrl] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -63,13 +64,15 @@ export default function Post() {
     : restaurants;
 
   const hasPlace = restaurant || (wantsCommunityPlace && communityName.trim().length > 1);
+  const proofUrlValid =
+    proofUrl.trim().length === 0 || /^https?:\/\/(www\.)?(youtube\.com|youtu\.be|instagram\.com)\//i.test(proofUrl.trim());
   const canProceed = [
     hasPlace,
     dishName.trim().length > 0,
     mealTags.size > 0,
     primarySignal !== null,
     true, // signal tags optional
-    caption.trim().length >= 10 && caption.trim().length <= 500,
+    caption.trim().length >= 10 && caption.trim().length <= 500 && proofUrlValid,
   ];
 
   function toggle<T>(set: Set<T>, setSet: (s: Set<T>) => void, value: T) {
@@ -114,6 +117,7 @@ export default function Post() {
             primarySignal,
             caption: caption.trim(),
             userLocation,
+            proofUrl: proofUrl.trim() || null,
           }
         : {
             restaurantId: restaurant?.id,
@@ -123,6 +127,7 @@ export default function Post() {
             primarySignal,
             caption: caption.trim(),
             userLocation,
+            proofUrl: proofUrl.trim() || null,
           };
 
       const response = await createRecommendation(payload);
@@ -342,6 +347,25 @@ export default function Post() {
               className="mt-3 w-full resize-none rounded-xl border border-pt-border bg-white p-4 text-base leading-relaxed focus:border-pt-primary focus:outline-none focus:ring-2 focus:ring-pt-primary/20"
             />
             <p className="mt-1 text-right text-xs text-pt-ink-soft">{caption.length}/500 (min 10)</p>
+
+            <h2 className="mt-6 font-display text-lg font-semibold text-pt-ink">Proof link (optional)</h2>
+            <p className="mt-1 text-sm text-pt-ink-soft">
+              Paste a YouTube or Instagram link showing this dish — shown on your post as manual verification.
+            </p>
+            <input
+              value={proofUrl}
+              onChange={(e) => setProofUrl(e.target.value)}
+              placeholder="https://instagram.com/p/…"
+              inputMode="url"
+              className={`mt-3 min-h-[44px] w-full rounded-xl border bg-white px-4 text-base focus:outline-none focus:ring-2 ${
+                proofUrlValid
+                  ? "border-pt-border focus:border-pt-primary focus:ring-pt-primary/20"
+                  : "border-pt-danger focus:border-pt-danger focus:ring-pt-danger/20"
+              }`}
+            />
+            {!proofUrlValid && (
+              <p className="mt-1 text-sm text-pt-danger">Must be a youtube.com, youtu.be, or instagram.com link.</p>
+            )}
           </section>
         )}
       </div>

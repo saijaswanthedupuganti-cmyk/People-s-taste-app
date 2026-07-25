@@ -63,6 +63,7 @@ export function createTestStore() {
         weightedHelpful: 0,
         helpfulVoteCount: 0,
         status: "active",
+        proofUrl: input.proofUrl,
         createdAt: Date.now(),
       });
       return id;
