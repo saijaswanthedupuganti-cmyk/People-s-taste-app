@@ -87,7 +87,7 @@ export default function Home() {
         />
       )}
 
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-2xl md:max-w-4xl lg:max-w-6xl">
         <div className="pt-3">
           <FilterChips
             active={activeSignals}
@@ -96,22 +96,28 @@ export default function Home() {
           />
         </div>
 
-        <div className="space-y-4 px-4 py-4">
-          {loading && <p className="py-10 text-center text-sm text-pt-ink-soft">Loading recommendations…</p>}
-          {showingFallback && (
-            <p className="rounded-xl bg-pt-surface-2 px-4 py-3 text-sm text-pt-ink-soft">
-              No recs for {area} at this hour yet — showing all of Hyderabad instead.
-            </p>
-          )}
-          {!loading && results.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-pt-border px-4 py-10 text-center">
-              <p className="font-display text-lg font-semibold text-pt-ink">Be the first foodie to put this on the map</p>
-              <p className="mt-1 text-sm text-pt-ink-soft">No one's posted here yet. Your recommendation could be the first.</p>
+        <div className="px-4 py-4">
+          <div className="space-y-4">
+            {loading && <p className="py-10 text-center text-sm text-pt-ink-soft">Loading recommendations…</p>}
+            {showingFallback && (
+              <p className="rounded-xl bg-pt-surface-2 px-4 py-3 text-sm text-pt-ink-soft">
+                No recs for {area} at this hour yet — showing all of Hyderabad instead.
+              </p>
+            )}
+            {!loading && results.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-pt-border px-4 py-10 text-center">
+                <p className="font-display text-lg font-semibold text-pt-ink">Be the first foodie to put this on the map</p>
+                <p className="mt-1 text-sm text-pt-ink-soft">No one's posted here yet. Your recommendation could be the first.</p>
+              </div>
+            )}
+          </div>
+          {results.length > 0 && (
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 lg:grid-cols-3">
+              {results.map((rec) => (
+                <RecommendationCard key={rec.id} rec={rec} />
+              ))}
             </div>
           )}
-          {results.map((rec) => (
-            <RecommendationCard key={rec.id} rec={rec} />
-          ))}
         </div>
       </div>
     </div>

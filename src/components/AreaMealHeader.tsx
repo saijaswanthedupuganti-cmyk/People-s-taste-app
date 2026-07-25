@@ -15,7 +15,7 @@ export default function AreaMealHeader({
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-pt-border bg-pt-surface-2/95 backdrop-blur">
-      <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-4 py-3">
+      <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-4 py-3 md:max-w-4xl lg:max-w-6xl">
         <button
           type="button"
           onClick={onChangeArea}

@@ -21,14 +21,14 @@ export default function People() {
         <h1 className="font-display text-base font-semibold text-pt-ink">Foodies</h1>
       </header>
 
-      <div className="mx-auto max-w-2xl px-4 py-4">
+      <div className="mx-auto max-w-2xl px-4 py-4 md:max-w-4xl lg:max-w-6xl">
         {people === null && <p className="py-10 text-center text-pt-ink-soft">Loading…</p>}
 
         {people?.length === 0 && (
           <p className="py-10 text-center text-pt-ink-soft">No foodies yet — be the first to post.</p>
         )}
 
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
           {people?.map((person) => (
             <Link
               key={person.uid}

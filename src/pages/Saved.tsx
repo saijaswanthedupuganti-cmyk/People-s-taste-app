@@ -32,7 +32,7 @@ export default function Saved() {
 
   return (
     <div className="pb-24 md:pb-8">
-      <div className="mx-auto max-w-2xl px-4 py-6">
+      <div className="mx-auto max-w-2xl px-4 py-6 md:max-w-4xl lg:max-w-6xl">
         <h1 className="font-display text-xl font-semibold text-pt-ink">Saved</h1>
 
         {loading && <p className="mt-6 text-center text-sm text-pt-ink-soft">Loading…</p>}
@@ -50,7 +50,7 @@ export default function Saved() {
         )}
 
         {!loading && !error && recs.length > 0 && (
-          <div className="mt-6 space-y-4">
+          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 lg:grid-cols-3">
             {recs.map((rec) => (
               <RecommendationCard key={rec.id} rec={rec} />
             ))}

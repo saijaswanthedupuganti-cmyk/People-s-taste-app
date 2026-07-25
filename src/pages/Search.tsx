@@ -44,7 +44,7 @@ export default function Search() {
   return (
     <div className="pb-24 md:pb-8">
       <header className="sticky top-0 z-20 border-b border-pt-border bg-pt-surface/95 backdrop-blur">
-        <div className="mx-auto max-w-2xl px-4 pt-3">
+        <div className="mx-auto max-w-2xl px-4 pt-3 md:max-w-4xl lg:max-w-6xl">
           <div className="relative">
             <SearchIcon
               className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-pt-ink-soft"
@@ -100,36 +100,44 @@ export default function Search() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-2xl md:max-w-4xl lg:max-w-6xl">
         {tab === "dishes" && (
           <>
             <div className="pt-3">
               <FilterChips active={meals} onToggle={(id) => setMeals((c) => (c.has(id) ? new Set([...c].filter((x) => x !== id)) : new Set(c).add(id)))} options={MEAL_FILTERS.map((id) => ({ id, label: MEAL_LABEL[id] }))} />
             </div>
-            <div className="space-y-4 px-4 py-4">
+            <div className="px-4 py-4">
               {dishResults.length === 0 ? (
                 <p className="py-10 text-center text-sm text-pt-ink-soft">No matches. Try a different search.</p>
               ) : (
-                dishResults.map((rec) => <RecommendationCard key={rec.id} rec={rec} />)
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 lg:grid-cols-3">
+                  {dishResults.map((rec) => <RecommendationCard key={rec.id} rec={rec} />)}
+                </div>
               )}
             </div>
           </>
         )}
 
         {tab === "places" && (
-          <div className="space-y-3 px-4 py-4">
-            {placeResults.map((r) => (
-              <Link
-                key={r.id}
-                to={`/place/${r.id}`}
-                className="flex cursor-pointer items-center justify-between rounded-xl border border-pt-border bg-white px-4 py-3 transition-colors duration-150 hover:border-pt-primary/40"
-              >
-                <div>
-                  <p className="font-medium text-pt-ink">{r.name}</p>
-                  <p className="text-sm text-pt-ink-soft">{r.area} · {r.aggregates.recCount} recs</p>
-                </div>
-              </Link>
-            ))}
+          <div className="px-4 py-4">
+            {placeResults.length === 0 ? (
+              <p className="py-10 text-center text-sm text-pt-ink-soft">No matches. Try a different search.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {placeResults.map((r) => (
+                  <Link
+                    key={r.id}
+                    to={`/place/${r.id}`}
+                    className="flex cursor-pointer items-center justify-between rounded-xl border border-pt-border bg-white px-4 py-3 transition-colors duration-150 hover:border-pt-primary/40"
+                  >
+                    <div>
+                      <p className="font-medium text-pt-ink">{r.name}</p>
+                      <p className="text-sm text-pt-ink-soft">{r.area} · {r.aggregates.recCount} recs</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
