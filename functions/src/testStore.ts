@@ -90,6 +90,19 @@ export function createTestStore() {
       }
       return null;
     },
+    async getRecommendationsMissingRankingScore() {
+      return [...recommendations.values()]
+        .filter(
+          (r) => r.status === "live" && (r as unknown as Record<string, unknown>).rankingScore === undefined,
+        )
+        .map((r) => ({
+          id: r.id,
+          weightedHelpful: r.weightedHelpful,
+          trustSnapshot: r.trustSnapshot,
+          verificationMultiplier: r.verificationMultiplier,
+          createdAt: r.createdAt,
+        }));
+    },
     async getSave(id) {
       return saves.has(id);
     },
