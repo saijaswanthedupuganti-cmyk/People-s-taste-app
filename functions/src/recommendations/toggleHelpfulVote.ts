@@ -1,3 +1,4 @@
+import { computeRankingScore } from "../ranking.js";
 import type { Store } from "../store.js";
 import { computeTrust, updateTierHistory } from "../trust.js";
 
@@ -22,6 +23,16 @@ export async function toggleHelpfulVoteHandler(
     await store.applyHelpfulDelta(recId, -existingVote.weight, -1);
     await recomputeAuthorTrust(rec.authorId, -existingVote.weight, store, now);
     const updated = await store.getRecommendation(recId);
+    await store.setRankingScore(
+      recId,
+      computeRankingScore({
+        weightedHelpful: updated!.weightedHelpful,
+        trustSnapshot: updated!.trustSnapshot,
+        verificationMultiplier: updated!.verificationMultiplier,
+        createdAt: updated!.createdAt,
+        now,
+      }),
+    );
     return { voted: false, weightedHelpful: updated!.weightedHelpful, helpfulVoteCount: updated!.helpfulVoteCount };
   }
 
@@ -39,6 +50,16 @@ export async function toggleHelpfulVoteHandler(
   await store.applyHelpfulDelta(recId, weight, 1);
   await recomputeAuthorTrust(rec.authorId, weight, store, now);
   const updated = await store.getRecommendation(recId);
+  await store.setRankingScore(
+    recId,
+    computeRankingScore({
+      weightedHelpful: updated!.weightedHelpful,
+      trustSnapshot: updated!.trustSnapshot,
+      verificationMultiplier: updated!.verificationMultiplier,
+      createdAt: updated!.createdAt,
+      now,
+    }),
+  );
   return { voted: true, weightedHelpful: updated!.weightedHelpful, helpfulVoteCount: updated!.helpfulVoteCount };
 }
 

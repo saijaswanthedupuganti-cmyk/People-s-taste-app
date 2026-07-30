@@ -28,6 +28,7 @@ export interface Store {
   deleteVote(recId: string, voterUid: string): Promise<void>;
   countRecentVotesByVoter(voterUid: string, sinceMs: number): Promise<number>;
   applyHelpfulDelta(recId: string, weightedHelpfulDelta: number, voteCountDelta: number): Promise<void>;
+  setRankingScore(recId: string, rankingScore: number): Promise<void>;
   getUser(id: string): Promise<UserRecord | null>;
   createUser(input: NewUserInput, now: number): Promise<void>;
   incrementUserRecCount(id: string, verified: boolean): Promise<void>;
@@ -212,6 +213,10 @@ export class FirestoreStore implements Store {
       weightedHelpful: FieldValue.increment(weightedHelpfulDelta),
       helpfulVoteCount: FieldValue.increment(voteCountDelta),
     });
+  }
+
+  async setRankingScore(recId: string, rankingScore: number): Promise<void> {
+    await this.db.collection("recommendations").doc(recId).update({ rankingScore });
   }
 
   async getUser(id: string): Promise<UserRecord | null> {

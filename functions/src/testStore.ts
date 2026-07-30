@@ -117,6 +117,10 @@ export function createTestStore() {
       rec.weightedHelpful += weightedHelpfulDelta;
       rec.helpfulVoteCount += voteCountDelta;
     },
+    async setRankingScore(recId, rankingScore) {
+      const rec = recommendations.get(recId);
+      if (rec) rec.rankingScore = rankingScore;
+    },
     async getUser(id) {
       return users.get(id) ?? null;
     },
