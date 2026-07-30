@@ -3,6 +3,7 @@ import { db } from "./admin.js";
 import { FirestoreStore } from "./store.js";
 import { createRecommendationHandler, type CreateRecommendationInput } from "./recommendations/createRecommendation.js";
 import { toggleHelpfulVoteHandler } from "./recommendations/toggleHelpfulVote.js";
+import { backfillRankingScoreHandler } from "./recommendations/backfillRankingScore.js";
 import { toggleSaveHandler } from "./saves/toggleSave.js";
 import { ensureUserProfileHandler } from "./users/ensureUserProfile.js";
 import { updateHomeAreaHandler } from "./users/updateHomeArea.js";
@@ -56,6 +57,13 @@ export const toggleBlock = onCall({ region: "asia-south1" }, async (request) => 
   } catch (err) {
     throw new HttpsError("invalid-argument", err instanceof Error ? err.message : "Invalid request");
   }
+});
+
+// One-off admin/ops utility for the C1 fix (see backfillRankingScore.ts for the full deploy
+// runbook) — backfills `rankingScore` on any `live` recommendation that predates this field.
+export const backfillRankingScore = onCall({ region: "asia-south1" }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Login required");
+  return backfillRankingScoreHandler(store, Date.now());
 });
 
 export const updateHomeArea = onCall({ region: "asia-south1" }, async (request) => {

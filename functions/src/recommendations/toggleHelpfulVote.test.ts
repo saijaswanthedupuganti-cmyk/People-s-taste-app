@@ -20,6 +20,7 @@ describe("toggleHelpfulVoteHandler", () => {
       verificationMultiplier: 1.0,
       trustSnapshot: 10,
       weightedHelpful: 0,
+      rankingScore: 0,
       helpfulVoteCount: 0,
       status: "live",
       geoMismatch: false,
@@ -82,6 +83,7 @@ describe("toggleHelpfulVoteHandler", () => {
       verificationMultiplier: 1.0,
       trustSnapshot: 10,
       weightedHelpful: 0,
+      rankingScore: 0,
       helpfulVoteCount: 0,
       status: "live",
       geoMismatch: false,
@@ -145,6 +147,7 @@ describe("toggleHelpfulVoteHandler", () => {
       verificationMultiplier: 1.0,
       trustSnapshot: 10,
       weightedHelpful: 0,
+      rankingScore: 0,
       helpfulVoteCount: 0,
       status: "live",
       geoMismatch: false,
@@ -222,6 +225,7 @@ describe("toggleHelpfulVoteHandler", () => {
       verificationMultiplier: 1.0,
       trustSnapshot: 10,
       weightedHelpful: 0,
+      rankingScore: 0,
       helpfulVoteCount: 0,
       status: "live",
       geoMismatch: false,
@@ -240,5 +244,32 @@ describe("toggleHelpfulVoteHandler", () => {
     const { store } = createTestStore();
 
     await expect(toggleHelpfulVoteHandler("nonexistent", "voter1", store, FIXED_NOW)).rejects.toThrow(/not found/i);
+  });
+
+  it("recomputes rankingScore after a helpful vote is cast", async () => {
+    const { store, recommendations, users } = createTestStore();
+    recommendations.set("rec1", {
+      id: "rec1", authorId: "author1", restaurantId: "r1", dishName: "Biryani",
+      mealTags: [], signalTags: [], primarySignal: "recommend", caption: "Great",
+      verificationLevel: 1, verificationMultiplier: 1.0, trustSnapshot: 50,
+      weightedHelpful: 0, helpfulVoteCount: 0, rankingScore: 0, status: "live",
+      geoMismatch: false, geoAtPost: null, proofUrl: null, photo: null, createdAt: FIXED_NOW,
+    });
+    users.set("author1", {
+      id: "author1", username: "author", displayName: "Author", photoURL: "", tier: "explorer",
+      trustScore: 50, recCount: 1, verifiedRecCount: 0, weightedHelpfulReceived: 0,
+      homeArea: null, tierHistory: [], voteWeightPenaltyUntil: null, createdAt: FIXED_NOW,
+    });
+    users.set("voter1", {
+      id: "voter1", username: "voter", displayName: "Voter", photoURL: "", tier: "explorer",
+      trustScore: 80, recCount: 0, verifiedRecCount: 0, weightedHelpfulReceived: 0,
+      homeArea: null, tierHistory: [], voteWeightPenaltyUntil: null, createdAt: FIXED_NOW,
+    });
+
+    await toggleHelpfulVoteHandler("rec1", "voter1", store, FIXED_NOW);
+
+    const rec = await store.getRecommendation("rec1");
+    // voter's weight = 80/100 = 0.8; rankingScore = 0.8 * (50/100) * 1.0 * e^0 = 0.4
+    expect(rec!.rankingScore).toBeCloseTo(0.4, 5);
   });
 });

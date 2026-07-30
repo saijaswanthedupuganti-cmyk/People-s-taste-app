@@ -64,6 +64,7 @@ export function createTestStore() {
         verificationMultiplier: input.verificationMultiplier,
         trustSnapshot: input.trustSnapshot,
         weightedHelpful: 0,
+        rankingScore: input.rankingScore,
         helpfulVoteCount: 0,
         status: "live",
         geoMismatch: input.geoMismatch,
@@ -88,6 +89,19 @@ export function createTestStore() {
         if (rec.geoAtPost) return { geoAtPost: rec.geoAtPost, createdAt: rec.createdAt };
       }
       return null;
+    },
+    async getRecommendationsMissingRankingScore() {
+      return [...recommendations.values()]
+        .filter(
+          (r) => r.status === "live" && (r as unknown as Record<string, unknown>).rankingScore === undefined,
+        )
+        .map((r) => ({
+          id: r.id,
+          weightedHelpful: r.weightedHelpful,
+          trustSnapshot: r.trustSnapshot,
+          verificationMultiplier: r.verificationMultiplier,
+          createdAt: r.createdAt,
+        }));
     },
     async getSave(id) {
       return saves.has(id);
@@ -115,6 +129,10 @@ export function createTestStore() {
       if (!rec) return;
       rec.weightedHelpful += weightedHelpfulDelta;
       rec.helpfulVoteCount += voteCountDelta;
+    },
+    async setRankingScore(recId, rankingScore) {
+      const rec = recommendations.get(recId);
+      if (rec) rec.rankingScore = rankingScore;
     },
     async getUser(id) {
       return users.get(id) ?? null;

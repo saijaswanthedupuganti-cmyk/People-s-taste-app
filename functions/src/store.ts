@@ -11,6 +11,16 @@ import type {
   VoteRecord,
 } from "./types.js";
 
+// Minimal shape needed to recompute rankingScore for a legacy recommendation document that
+// predates this field (this branch's Task 3) — see backfillRankingScore.ts (C1 fix).
+export interface RecommendationMissingRankingScore {
+  id: string;
+  weightedHelpful: number;
+  trustSnapshot: number;
+  verificationMultiplier: number;
+  createdAt: number;
+}
+
 export interface Store {
   getRestaurant(id: string): Promise<RestaurantRecord | null>;
   findNearbyRestaurants(lat: number, lng: number, radiusMeters: number): Promise<RestaurantRecord[]>;
@@ -20,6 +30,7 @@ export interface Store {
   getRecommendation(id: string): Promise<RecommendationRecord | null>;
   countRecentRecommendationsByAuthor(authorId: string, sinceMs: number): Promise<number>;
   getRecentGeoTaggedRecommendation(authorId: string): Promise<{ geoAtPost: { lat: number; lng: number }; createdAt: number } | null>;
+  getRecommendationsMissingRankingScore(): Promise<RecommendationMissingRankingScore[]>;
   getSave(id: string): Promise<boolean>;
   createSave(id: string, uid: string, recId: string): Promise<void>;
   deleteSave(id: string): Promise<void>;
@@ -28,6 +39,7 @@ export interface Store {
   deleteVote(recId: string, voterUid: string): Promise<void>;
   countRecentVotesByVoter(voterUid: string, sinceMs: number): Promise<number>;
   applyHelpfulDelta(recId: string, weightedHelpfulDelta: number, voteCountDelta: number): Promise<void>;
+  setRankingScore(recId: string, rankingScore: number): Promise<void>;
   getUser(id: string): Promise<UserRecord | null>;
   createUser(input: NewUserInput, now: number): Promise<void>;
   incrementUserRecCount(id: string, verified: boolean): Promise<void>;
@@ -113,6 +125,7 @@ export class FirestoreStore implements Store {
       verificationMultiplier: input.verificationMultiplier,
       trustSnapshot: input.trustSnapshot,
       weightedHelpful: 0,
+      rankingScore: input.rankingScore,
       helpfulVoteCount: 0,
       status: "live",
       geoMismatch: input.geoMismatch,
@@ -163,6 +176,27 @@ export class FirestoreStore implements Store {
     return null;
   }
 
+  async getRecommendationsMissingRankingScore(): Promise<RecommendationMissingRankingScore[]> {
+    // Firestore has no efficient "field does not exist" query at scale (same tradeoff as
+    // findNearbyRestaurants above) — query all `live` recommendations and filter in code.
+    // Fine at dev/beta scale; revisit if this collection grows into the tens of thousands.
+    const snap = await this.db.collection("recommendations").where("status", "==", "live").get();
+    const missing: RecommendationMissingRankingScore[] = [];
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      if (data.rankingScore === undefined) {
+        missing.push({
+          id: doc.id,
+          weightedHelpful: data.weightedHelpful,
+          trustSnapshot: data.trustSnapshot,
+          verificationMultiplier: data.verificationMultiplier,
+          createdAt: (data.createdAt as Timestamp).toMillis(),
+        });
+      }
+    }
+    return missing;
+  }
+
   async getSave(id: string): Promise<boolean> {
     const doc = await this.db.collection("saves").doc(id).get();
     return doc.exists;
@@ -211,6 +245,10 @@ export class FirestoreStore implements Store {
       weightedHelpful: FieldValue.increment(weightedHelpfulDelta),
       helpfulVoteCount: FieldValue.increment(voteCountDelta),
     });
+  }
+
+  async setRankingScore(recId: string, rankingScore: number): Promise<void> {
+    await this.db.collection("recommendations").doc(recId).update({ rankingScore });
   }
 
   async getUser(id: string): Promise<UserRecord | null> {
