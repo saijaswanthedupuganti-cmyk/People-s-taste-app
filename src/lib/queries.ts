@@ -110,7 +110,7 @@ export async function fetchFeed(limitCount = 50): Promise<Recommendation[]> {
   const snap = await getDocs(
     query(
       collection(db, "recommendations"),
-      where("status", "==", "active"),
+      where("status", "==", "live"),
       orderBy("createdAt", "desc"),
       limit(limitCount),
     ),
@@ -157,7 +157,7 @@ export async function fetchRecommendationsForRestaurant(restaurantId: string): P
       query(
         collection(db, "recommendations"),
         where("restaurantId", "==", restaurantId),
-        where("status", "==", "active"),
+        where("status", "==", "live"),
         orderBy("createdAt", "desc"),
       ),
     ),
@@ -208,7 +208,7 @@ export async function fetchRecommendationsByAuthor(authorId: string): Promise<Re
     query(
       collection(db, "recommendations"),
       where("authorId", "==", authorId),
-      where("status", "==", "active"),
+      where("status", "==", "live"),
       orderBy("createdAt", "desc"),
     ),
   );
