@@ -1,5 +1,5 @@
 # PEOPLE'S TASTE — MASTER BUILD DOCUMENT
-**Version 1.4 · July 2026 · Owner: Sai Jaswanth Edupuganti**
+**Version 1.5 · July 2026 · Owner: Sai Jaswanth Edupuganti**
 **Status: Foundation document. Every line is editable by the owner. Claude Code must treat this as the single source of truth.**
 
 **v1.1 changelog:** merged four items from the earlier `Peoples_Taste_Product_Blueprint_v0.1` draft that hadn't made it into v1.0 — Community Places (§5.1), follow-based feed composition (§11.6), per-recommendation feedback loop (§11.7), and the Restaurant Owner role (§7, §7.2). Schema updated to match (§15).
@@ -8,7 +8,11 @@
 
 **v1.3 changelog:** the `Peoples_Taste_Claude_Code_Master_Spec` (Kimi) document's full type schema was cross-checked use-case-by-use-case against this doc, not just for bugs. Six genuine feature gaps surfaced — things that schema assumed exist but this doc never specified: user handles/public profile URLs (§15), blocking (§14, §15), People search (§13), notifications (§8.1 screen 13, §15), user-level dietary/cuisine/price preferences as feed personalization (§13.2), and PWA installability (§16). Also added: lightweight replies as an explicit **open decision** rather than silently adopting full comment threads (D8, §20) — Kimi's schema assumes comments exist, but that's in tension with Principle #1 ("recommendation is the atomic unit," not a review-and-discussion thread) and deserves an owner call, not a silent merge. Architecture itself (Vite/Firestore/flat schema/trust-weighted voting) is unchanged — this pass is about use-case completeness, not another stack decision.
 
-**v1.4 changelog:** owner supplied a 28-point product review checklist (2026-07-25) and asked for it to be cross-checked against this document and the live codebase, not adopted at face value. Result, in full, is new §21. Headline finding: this was **not** mostly a "28 new features" situation — the large majority of the checklist was already specified here, several as *locked, Phase 1, non-negotiable* — and a code audit found several of those were never actually built despite later phases (posting, voting, tiers) shipping around them. Most serious: §14's Anti-Abuse Stack (App Check, velocity limits, blocking, impossible-travel/device-fingerprint checks) is almost entirely unbuilt; §11.1's ranking formula (trust-weighted `rankingScore` with time decay) doesn't exist — the feed is pure `createdAt` chronological order today, which quietly contradicts the "we rank by trust, not chronology" positioning claim in §2; §11.6's follow-based feed layering is unbuilt; the Editor Console (§8.1 screen 11) — a *Phase 0 exit criterion* — was never built at all. Six items from the checklist are genuinely new (not in this doc before) and get logged as owner decisions D9–D14 rather than silently built: SEO/rendering strategy for the SPA architecture (D9), a Community Vendor identity-verification pipeline that's stricter than §5.1's existing dedupe-only flow (D10), Dynamic Vendors / today's-location-and-timing for mobile vendors (D11), Creator Profile fields distinct from the per-post proof-link shipped same day (D12), pretty share-link URLs (D13), and closing the overdue Editor Console (D14, not really a new *decision* so much as a scheduling call on when it finally gets built). Full detail, phase-by-phase gap table, and reasoning in §21 — do not start building any checklist item without reading it first.
+**v1.4 changelog:** owner supplied a 28-point product review checklist (2026-07-25) and asked for it to be cross-checked against this document and the live codebase, not adopted at face value. Result, in full, is new §21. Headline finding: this was **not** mostly a "28 new features" situation — the large majority of the checklist was already specified here, several as *locked, Phase 1, non-negotiable* — and a code audit found several of those were never actually built despite later phases (posting, voting, tiers) shipping around them. Most serious: §14's Anti-Abuse Stack (App Check, velocity limits, blocking, impossible-travel/device-fingerprint checks) is almost entirely unbuilt; §11.1's ranking formula (trust-weighted `rankingScore` with time decay) doesn't exist — the feed is pure `createdAt` chronological order today, which quietly contradicts the "we rank by trust, not chronology" positioning claim in §2; §11.6's follow-based feed layering is unbuilt; the Editor Console (§8.1 screen 11) — a *Phase 0 exit criterion* — was never built at all. Six items from the checklist are genuinely new (not in this doc before) and get logged as owner decisions D9–D14 rather than silently built: SEO/rendering strategy for the SPA architecture (D9), a Community Vendor identity-verification pipeline that's stricter than §5.1's existing dedupe-only flow (D10), Dynamic Vendors / today's-location-and-timing for mobile vendors (D11), Creator Profile fields distinct from the per-post proof-link shipped same day (D12), pretty share-link URLs (D13), and closing the overdue Editor Console (D14, not really a new *decision* so much as a scheduling call on when it finally gets built). Full detail, phase-by-phase gap table, and reasoning in §21 — do not start building any checklist item without reading it first. Same day, before moving further down §21.5's build order: §14 Anti-Abuse basics and §9.3 trust velocity shipped (backend only, 42 tests) — see §21 item 1 update.
+
+**v1.5 changelog:** owner called an explicit halt to incremental feature work ("stop adding random features") and asked for a proper Information Architecture + Product Design System pass instead — role-based IA, sitemap, navigation architecture, a section-by-section rationale for the Home page (reframed as a **Discovery Dashboard**, not a feed), Restaurant/Dish page IA, a formalized **Creator Evidence** model, a component inventory, and a frontend implementation plan, all before further UI work. This is new **PART 8 (§22–§30)**. Also amends instruction #5 (top of this doc): design process is now **web/desktop-first** — design and build for desktop/laptop/tablet first, adapt down to mobile, not the reverse. (This doesn't undo the mobile-responsive work already shipped 2026-07-25, which handles both; it changes how *new* screens get designed from here on.) Nothing in Part 7's §21.5 build order (Ranking Engine → Editor Console → Follow → Google Places) is changed by this — Part 8 is the missing IA layer those features will be built inside of, not a replacement for them.
+
+**v1.6 changelog:** owner supplied a second external reference — a 21-chapter "People's Taste Product Bible v0.1" (broader, more philosophical/architectural in tone, occasionally assumes a different stack) — for cross-check against this document, same method as v1.3's Kimi-spec pass: nothing merged silently, redundant restatement of already-locked decisions logged as consistent-not-additive rather than re-added, genuine gaps written up as new sections, real conflicts logged as owner decisions rather than picked for the owner. Result is new **PART 9 (§31–§40)**. Six areas had real net-new depth this doc didn't already have: dish-variant modeling and seasonal/complementary-dish discovery (§32, extends §26), a fuller Business Owner platform — branches, staff roles, subscription tiers (§33, extends deferred §7.2), a Creator Knowledge Score writeup and Food Trails (§34, extends locked §27), a three-type location model (Current/Home/Destination City) and an intent-based Discovery Radius Engine (§35, extends §11.3/§16), Food Lists/Trails/Passport gamification (§36, extends §11.6/§9.1), and a graduated Admin role hierarchy plus CMS/feature-flag tooling (§37, extends D14's Editor Console). §38 notes a backend event-bus/domain-service folder pattern as a code-organization recommendation — consistent with, not a change to, this doc's already-locked Vite+Vercel stack (§16); the source's own Next.js assumption doesn't introduce a new conflict, it restates one branch already logged under D9. Three new owner decisions, D16–D18 (§39). §40 lists what was read and found consistent with §9–§15/§19 but not re-merged, so it isn't mistaken for an oversight later.
 
 ---
 
@@ -657,11 +661,240 @@ The architecture is a client-rendered Vite SPA (confirmed: `index.html` ships an
 
 Given the above, the highest-leverage next work — the things marked *locked* and *Phase 1 non-negotiable* in this document that somehow never got built — is, in priority order:
 
-1. **§14 Anti-Abuse Stack basics** (App Check, velocity limits, blocking) — real users can already reach this app; every day it's live without this is a day of exposure the doc explicitly warned about
+1. ✅ **Done 2026-07-25** — §14 Anti-Abuse Stack basics: velocity limits, §9.3 trust velocity, geo-mismatch + impossible-travel flags, blocking. App Check still needs the owner to generate a reCAPTCHA site key in the Firebase console — code isn't wired for it yet, tracked separately, not blocking the rest.
 2. **§11.1 Ranking Engine** (`rankingScore`, time decay, feed sorted by it instead of `createdAt`) — the core "trust, not chronology" claim isn't actually true of the shipped product yet
 3. **§8.1 screen 11 Editor Console** (D14) — overdue Phase 0 exit criterion, and §14's moderation queue has nowhere to route to without it
 4. **§11.6 Follow system** — unblocks `trust.ts`'s stubbed `communityFactor`, the "Trusted Foodies Near You" personalization, and use case U6
 5. Google Places integration (§16, items 3–4) — needed before real restaurant data can scale past manual seeding
 6. Everything gated on D9–D13 (SEO/share-links, Community Vendor pipeline, Creator Profile) — worth owner decisions before code, not before
 
-*End of Master Build Document v1.4. Every line above is subject to owner revision. Claude Code: confirm build order in §21.5 with the owner before starting, per instruction #3 (top of this doc).*
+# PART 8 — INFORMATION ARCHITECTURE & PRODUCT DESIGN SYSTEM (v1.5)
+
+## 22. Why This Part Exists
+
+Every section below answers a single test, per the owner's instruction: **why am I here, what should I do, what should I explore, what's the next action?** If a section can't answer all four, it doesn't ship. This Part does not replace Part 3 (Object Model, §5–§8) or Part 4 (Trust/Ranking, §9–§14) — it operationalizes them into an actual navigable product: who sees what, in what order, and why each screen exists. Where this Part's thinking updates something already locked elsewhere (Home's identity, the design process), that's called out explicitly as an amendment, not a silent overwrite.
+
+**Design process amendment (updates instruction #5, top of document):** desktop/laptop/tablet is now the primary design target; mobile is adapted down from it, not the other way around. Concretely: when a new screen is designed, its layout, hierarchy, and information density are decided at desktop width first, then simplified for mobile — never the reverse. This does not retroactively break the mobile-responsive work already shipped (2026-07-25 Home/Search/Saved/People grid + Login redesign already serve both correctly); it governs how the *next* screens get designed.
+
+## 23. Role-Based Information Architecture
+
+Six lenses on the same object graph (§5's `Recommendation → Dish → Restaurant → Area → City`), not six separate apps. A user can hold multiple roles at once (e.g. a Trusted Foodie who is also a Creator) — these are capabilities layered on one account, matching §7's existing role table, not a account-type switch.
+
+```
+Visitor (no account)                    — §7, unchanged
+  Landing / Discovery Dashboard, Restaurant, Dish, Trusted Foodie profile,
+  Community Place, Search, About, Privacy, Terms
+  Cannot: save, vote, post, follow
+
+Member (signed in)                      — §7, unchanged
+  Everything above, plus:
+  Home (personalized), Recommendations (own), Following, Saved,
+  Notifications [Phase 2, §8.1 screen 13], Messages [far future, not scheduled],
+  Profile, Settings
+
+Trusted Foodie (tier badge, §9.1)       — a Member who crossed a trust threshold, not a separate account
+  Everything above, plus:
+  Trust Progress (own profile — already shipped, §9.1 tier bar),
+  Achievements [new — see §28 gap list], Verification history,
+  Tastemaker Application (§7.1, appears only after threshold unlock)
+
+Creator (opt-in profile capability)      — NEW this pass, formalizes checklist items 20–22 + D12
+  A Member/Trusted Foodie who added official Instagram/YouTube/Website links to their profile.
+  Not a separate feed, not a separate ranking lane (Principle #2: no paid or status-based ranking
+  boosts). See §27 Creator Evidence Model — the whole model is "recommendation contains evidence,"
+  never "creator profile contains recommendations as a portfolio."
+
+Restaurant Owner (claimed listing)       — §7.2, [Phase 2/DEFERRED], unchanged, reserved fields only
+  Dashboard, Restaurant (edit non-ranking fields), Menu, Offers, Gallery, Business Hours,
+  Analytics [DEFERRED further, Phase 4], Customers [DEFERRED further]
+  Cannot: edit/hide/reorder recommendations, touch trust scores or rankings (§7.2 already locked this)
+
+Admin / Editor (owner + delegated editors) — §7 "Editor" role, §8.1 screen 11, D14
+  Dashboard, Restaurants, Community Places, Users, Trusted Foodies, Moderation queue (§14, §11.7
+  reports), Sponsored Listings [Phase 4], Analytics, Campaigns [Phase 4]
+```
+
+**Why Creator is a lens, not a tier:** the checklist's Creator Program risks recentering the product on influencers, which the owner's own closing note in this pass explicitly corrects — "instead of making influencers the center of the product, make them evidence providers." That correction is adopted as the locked model (§27), not left as an open question.
+
+## 24. Sitemap
+
+```
+/                          Discovery Dashboard (Home) — §24
+/search                    Search & Results (dishes/places, People link-out) — §13, built
+/rec/:id                   Recommendation Detail — §8.1 screen 3, built
+/place/:id                 Restaurant Profile — §25
+/dish/:id                  Dish Profile — §26 [NEW — dishes collection exists in schema, §15, never used]
+/u/:username               Trusted Foodie public profile — §8.1 screen 8, built
+/people                    People directory (all foodies, ranked) — built 2026-07-25
+/post                      Post a Recommendation — §8.1 screen 5, built (gated)
+/saved                     Saved — built (gated)
+/profile                   Own profile — built (gated)
+/login                     Auth — built
+/about, /privacy, /terms   Static — §8.1 screen 12 [NOT YET BUILT]
+
+/settings                  [NOT YET BUILT] — notification prefs, dietary/cuisine/price
+                           preferences (§13.2), blocked accounts list (§14 point 10)
+/notifications             [Phase 2, §8.1 screen 13]
+
+/tastemaker/apply          Tastemaker Application — §8.1 screen 9 [NOT YET BUILT]
+/owner/*                   Restaurant Owner dashboard — [Phase 2/DEFERRED, §7.2]
+/admin/*                   Editor Console — §8.1 screen 11, D14 [NOT YET BUILT — see §21.5 priority 3]
+
+/r/:slug                   Pretty share link — D13 [BLOCKED on D9 SEO decision]
+```
+
+**Navigation architecture:** primary nav stays Home · Search · Post (+) · People · Saved · Profile (§8.2, already built as the desktop sidebar / mobile bottom bar). Settings and Notifications live behind the Profile entry point, not in primary nav — they're configuration, not destinations someone browses to. Admin and Owner dashboards are separate route trees, never merged into the consumer nav, entered only via role-gated redirect after login (a non-Owner/non-Editor hitting `/admin` or `/owner` gets redirected to `/`, not shown a 403 page — consistent with §14's "never accuse" tone).
+
+## 24.1 Home Page IA — The Discovery Dashboard
+
+Reframing, not a rename: Home is not "the feed," it's the answer to one question, asked in that order — **"What should I eat right now, nearby, and whose recommendation should I trust?"** Every section below justifies itself against that question or it doesn't belong. Current build status noted per section (most of this shipped 2026-07-25; gaps are called out, not silently assumed done).
+
+| Section | Answers | Status |
+|---|---|---|
+| Header — logo, location, meal selector, search entry, profile | Where am I, when is it, who am I | ✅ Built (`AreaMealHeader`, avatar pending — see §28 gap) |
+| Hero — "What are you craving today?" + search bar | What can I do right here | ✅ Built 2026-07-25 |
+| Personalized feed (if following someone) | What do people I trust think, first | ❌ Not built — depends on the Follow system (§11.6, §21.5 priority 4). Until then, this slot is *not* shown empty; layers 3–6 of §11.6 (nearby Trusted Foodies, trending, under-covered places) fill it, which is exactly what's built today |
+| Trending in Hyderabad | What's popular right now, city-wide | ✅ Built (sorted by helpful-vote count; becomes true rankingScore sort once §21.5 priority 2 ships) |
+| Trusted Foodies Near You | Whose taste can I follow, locally | ✅ Built (derived from the current area/meal view's real authors, ranked by tier) |
+| Categories (Hidden Gem, Best Value, Worth Traveling, Late-Night, Family/Solo-Friendly) | Let me narrow by vibe, not just meal | ✅ Built as icon-labeled filter chips |
+| Discovery ("because you liked…", near you, recently added) | Give me one more reason to keep scrolling | ❌ Not built — "because you liked" needs either Follow or `preferences` (§13.2), neither shipped. "Near you" already exists via the area filter; don't build a redundant second copy of it |
+| Creator Picks | Show me evidence-backed recs from known creators | ❌ Not built — depends on §27 Creator Evidence model shipping; do not build a separate "creator feed," this should be a filtered view of recommendations that *have* attached evidence, nothing more |
+| Community Places (street vendors, trucks, stalls) | Remind me not every good place is on Google | ⚠️ Partial — §5.1 Community Places exist in the data model and Post flow; there's no dedicated homepage surfacing section for them yet |
+| Restaurant Spotlight / Sponsored | (only once monetization exists) | ⏸ Correctly not built — Phase 4, Principle #2 requires visible "Sponsored" labeling whenever it ships, never blended into organic sections |
+| CTA — Recommend a Dish / Become a Trusted Foodie | What should I do if I have nothing to browse | ✅ "Recommend a Dish" built (empty-state CTA); "Become a Trusted Foodie" CTA not yet surfaced on Home — it currently only appears as a threshold-unlocked button in Profile (§7.1) |
+| How It Works | Why should I trust any of this | ✅ Built (3-step: Recommend → Get Votes → Build Trust — matches the real trust mechanics, not marketing copy) |
+
+**Never show nothing:** every section above either hides itself cleanly when empty (already the pattern for Trending/Hidden Gems/Trusted Foodies, §21's honest-empty-state approach) or falls through §12's empty-state ladder. No section should ever render a bare "no results" — that's already a locked, non-negotiable rule (§12) and the current build honors it.
+
+## 25. Restaurant Page IA
+
+Current (`RestaurantProfile.tsx`): name/area/price, Google Maps link, "Best Dish" aggregate card, all recommendations (grid, §21 desktop fix). Gaps against this pass's ask, in priority order:
+
+1. **Gallery** — photos pulled from recommendations' own `photo` field (shipped 2026-07-25) aggregated onto the restaurant page; no separate photo-upload path needed, reuse what recommendations already contribute
+2. **Instagram/YouTube posts section** — surfaces recommendations on this restaurant that have a `proofUrl` attached, rendered as a distinct "Evidence" strip (§27), not a generic embed grid
+3. **Community Score** — this is `aggregates.recCount` + trust-tier distribution of contributors, already computable from existing data; needs a small aggregate widget, not new backend work
+4. **Menu, Offers, Business Hours** — Owner-editable fields, correctly gated behind §7.2's deferred Owner claim path; do not build editable UI before the claim flow exists
+5. **Related restaurants / similar dishes** — needs the Dish Profile page (§26) to exist first; a restaurant's "similar" set is naturally "other restaurants serving this restaurant's top dish," which is a dish-page query, not a restaurant-page one
+
+## 26. Dish Page IA (net-new)
+
+`dishes/{dishId}` already exists in the locked schema (§15) and is currently **never written to** — every recommendation stores `dishName` as a free-text string on itself, with no dish-level aggregation. Building this page means, in order:
+1. Backend: on `createRecommendation`, resolve/create a `dishes/{dishId}` doc keyed by `(restaurantId, normalized dish name)` or a city-wide dish-category doc if the intent is cross-restaurant aggregation (**owner call — which of these two is intended is genuinely ambiguous from the checklist and needs a decision before backend work starts, logging as D15**)
+2. Frontend: `/dish/:id` — dish hero, best restaurant for it, top recommendations mentioning it, nearby alternatives, community-confirmed "Would Return %" (derived from existing `signalTags` containing `would_return`, not a new field)
+3. Do not build this before the Ranking Engine (§21.5 priority 2) ships — "best restaurant for this dish" is a ranking query, and ranking by `createdAt` would make this page actively misleading on day one
+
+## 27. Creator Evidence Model (formalizes checklist items 20–22, D12)
+
+**Locked framing, adopted from the owner's own correction in this pass:** creators are evidence providers, not a separate content lane. The object relationship is:
+
+```
+Recommendation
+  └── optionally carries evidence:
+        - photos (shipped)
+        - one YouTube/Instagram link — `proofUrl` (shipped 2026-07-25)
+        - Google Maps link (already present via restaurant location)
+        - receipt upload (§10 L3+ verification — schema exists, upload flow doesn't)
+```
+
+Never the reverse (`CreatorProfile → recommendations[]` as a portfolio) — that would recreate exactly the influencer-centric model the owner's note explicitly rejected. A Creator's profile (D12, still open) should show their **recommendations that happen to carry evidence**, not a media gallery independent of the recommendation object. This also means: no video *uploads*, ever — `proofUrl` already enforces official YouTube/Instagram URLs only (validated server-side against a host allowlist), which is exactly what item 22 asked for ("only official public URLs"). Embedding the actual Instagram/YouTube player inline (vs. today's plain outbound link) is the only remaining piece of items 20–22, and is a frontend-only addition (oEmbed) once D12's profile-field scope is decided.
+
+## 28. Component Inventory & Design System
+
+**Design tokens:** already locked in §4.2 (color palette) and §4.3 (typography) — this pass does not re-litigate them, only catalogs what's built against them.
+
+**Built components:** `RecommendationCard`, `CompactRecCard`, `TrustBadge`, `VerificationBadge`, `FilterChips` (now icon-capable), `PhotoPlaceholder`, `LocationSheet`, `AreaMealHeader`, `Layout`/`BottomNav`.
+
+**Gaps, in the order §24.1/§25/§26 need them:**
+- Header profile avatar + entry point (currently the header has location/meal only, no visible signed-in state indicator — small, high-value fix)
+- Evidence strip (renders `proofUrl` as a labeled chip/embed, used on both Recommendation Detail and the new Restaurant Gallery section, §25 item 2)
+- Achievement badge (Trusted Foodie tier progress — §9.1's tier bar exists on own Profile; a shareable/displayable achievement component doesn't yet)
+- Admin table/queue components — needed for §8.1 screen 11, don't exist at all yet
+- Owner dashboard card shells — correctly not built, Phase 2/DEFERRED (§7.2)
+
+**States every new component must define before shipping (per the owner's checklist and this doc's existing §19 standards):** loading, empty, error, success — already the working pattern in every built page (Home/Search/Saved all show explicit loading and empty states); hold new components to the same bar.
+
+## 29. User Flows
+
+§18 already documents U1–U8 (core journeys) and E1–E11 (edge cases) — unchanged, still the canonical flow list. This pass adds two flows implied by the new IA, not yet in §18:
+
+- **U9 · Creator attaches evidence:** posts a recommendation → at the caption step, optionally pastes a YouTube/Instagram URL (already built) → recommendation publishes with an Evidence badge → later visible in the Restaurant page's Evidence strip (§25 item 2, once built)
+- **U10 · Admin reviews a report:** a recommendation crosses the negative-feedback threshold (§11.7, D7) or is flagged via §14's abuse checks → appears in the Editor Console moderation queue (§8.1 screen 11, D14) → editor approves/suppresses/removes with a reason, never silent, never auto-removed (§11.7 already locks this)
+
+## 30. Frontend Implementation Plan
+
+This does not replace §17's Phased Roadmap or §21.5's priority order — it's the sequencing of *this Part's* IA work relative to that existing plan:
+
+1. **Now / already in flight per §21.5:** Ranking Engine → Editor Console → Follow system → Google Places (unchanged by this Part)
+2. **Immediately after, informed by this Part:** header profile-avatar fix (§28), Restaurant page Gallery + Evidence strip (§25 items 1–2) — both cheap, both use data that already exists, both directly answer this pass's "too much whitespace, weak hierarchy" critique of the current build
+3. **Once Ranking Engine ships:** Dish Profile page (§26) — explicitly sequenced after ranking, per §26's own note
+4. **Once Follow ships:** Home's "personalized feed" and "because you liked" slots (§24.1) go from hidden to live — no new UI work needed, they're already designed to appear once the data exists
+5. **Owner decisions still open before their sections can start:** D9 (SEO/rendering — this pass's "everything indexable" restates the ask but doesn't change the recommendation to defer past Phase 3), D12 (Creator Profile field scope), D15 (dish-aggregation key, §26, new this pass)
+
+Wireframes for §24.1 (Discovery Dashboard), §25 (Restaurant), and §26 (Dish) are published as a companion visual artifact rather than pasted here as text — low-fidelity box diagrams read far better rendered than as markdown ASCII. High-fidelity wireframes are the next step once these low-fidelity layouts and this IA are confirmed, per the owner's own sequencing instruction ("only after architecture is perfect should you design UI") — building high-fidelity comps against an unconfirmed IA would mean redoing them.
+
+---
+
+# PART 9 — PRODUCT BIBLE CROSS-CHECK (v1.6, 2026-07-30)
+
+## 31. Source & Method
+
+Second external reference this pass: a 21-chapter "People's Taste Product Bible v0.1" (Chapter 22, "Search, Discovery & Ranking Algorithms," was announced in the source's table of contents but never written — nothing to cross-check there yet). It's broader and more philosophical than this document — closer to a design manifesto than an implementation spec — and in one place assumes a different frontend stack (Next.js App Router) where this doc has a locked, already-deployed Vite + Vercel stack (§16). Same method as v1.3's Kimi-spec cross-check: read the whole thing, merge nothing silently, log genuine gaps as new sections, log real conflicts as owner decisions instead of resolving them unilaterally, and explicitly say what was read and found consistent-but-not-additive so it isn't mistaken for something missed.
+
+## 32. Dish Ecosystem Enrichment (extends §26 Dish Page IA)
+
+- **Dish variants as child entities.** The source models "Biryani" as a parent concept with Chicken/Mutton/Veg/Fish/Prawns as distinct dish docs, each with its own recommendation set and aggregate score, rather than one flat bucket. This bears directly on D15 (§26, still open — per-restaurant name vs. city-wide category as the dish key): variant modeling suggests a third shape, a city-wide category *with* variant children, not a binary choice between the two already listed. Folded into D15's still-open decision, not logged as a separate one.
+- **Complementary/similar dish suggestions** ("Biryani → Double Ka Meetha, Lassi") — a recommendation-graph feature, same tier as §11.2's deferred v2 ranking formula: needs real usage data to be worth anything, not five more guessed weights on day one. `[DEFERRED]`.
+- **Seasonal/weather dish mapping** (Ramadan → Haleem, Monsoon → Pakoda) is legitimate Discovery Dashboard content once the Dish page ships, but it's an Editor-curated tag list using the existing Editor's Picks mechanism (§12 layer 4, `editorsPicks/{pickId}`), not a new AI system or new collection.
+- **Dish badges** (Trending / Community Favorite / Worth Travelling / Hidden Gem / Verified Signature) already exist conceptually as this doc's `signalTags[]` (§6), computed per-recommendation. A Dish page aggregates and displays them; it doesn't need a second, parallel badge system.
+
+## 33. Business Owner Platform Depth (extends §7.2, still `[Phase 2/DEFERRED]`)
+
+- **Business hierarchy** (Business Account → Business Profile → Restaurant(s) → Branches) matters once a chain/franchise claims multiple locations, which §7.2's current schema doesn't model (`restaurants/{id}.claimedBy = uid` is one owner per restaurant, no shared entity grouping several). When §7.2 actually gets built, reserve a `businessProfiles/{id} { ownerUid, managerUids[], restaurantIds[] }` collection in the schema alongside it — still deferred, only the shape is worth reserving now.
+- **Staff roles** (Owner/Manager/Editor/Viewer within a claimed business) extend §7.2's single-owner model. Recommend deferring this granularity until the 1-tier claim flow (§7.2, D6) actually ships and a real multi-location owner asks for it — building 4-tier staff permissions before the 1-tier version exists is premature.
+- **Subscription tiers** (Free/Pro/Enterprise — analytics, campaigns, multi-manager, API access) are a genuinely new monetization surface, not previously scoped in §17 Phase 4's existing sequence (affiliate reservations → premium Tastemaker tools → B2B insights → sponsored listings). Logged as **D16**.
+- **QR code** (restaurant table QR → recommend-after-meal flow) is a cheap, real offline-to-online bridge that doesn't require the Owner Portal to exist first — any restaurant already has a URL (`/place/:id`, §24). Could ship as a printable QR generator on any restaurant's existing profile page well before §7.2's Owner claim is built. Worth a cheap Phase 2/3 addition on its own, not gated on the rest of this section.
+
+## 34. Creator Platform Additions (extends §27 Creator Evidence Model, locked)
+
+- **Creator Knowledge Score (CKS)** — the source proposes an internal-only score for lasting-knowledge contribution: recommendation quality, confirmations, cuisine/city diversity, accuracy over time, freshness. This is structurally identical to this doc's own Trust Score (§9.1) — same inputs in spirit, same "never a raw number to the user" rule, same "diversity helps tier progression, never the score itself" carve-out (Principle #7). Recommend: do **not** build a second parallel score. If Creator-specific signal is ever needed, it's a query filter over existing Trust Score data (e.g. trust among users with `proofUrl` on most of their recommendations), not a new field, function, or collection — this is exactly what §27's "evidence provider, not a separate lane" framing already implies.
+- **Food Trails** (a Creator-curated multi-stop route: Restaurant → Dish → Restaurant → Dish) is genuinely new — not covered anywhere in this doc today. Structurally it's a named, ordered list of existing `recommendations`/`restaurants`, closer to a public Collection than a new object type. Recommend: `trails/{trailId} { creatorUid, title, area, stops: [{restaurantId, dishId, order, note}], public }` — new collection, but it reuses existing IDs and needs no new restaurant/dish/recommendation logic. `[Phase 4]`, same tier as this doc's other deferred discovery features — not core loop.
+
+## 35. Location Intelligence Additions (extends §11.3, §16)
+
+- **Three location types — Current / Home City / Destination City.** A genuinely useful distinction this doc doesn't currently make; today §11.3 only has GPS-on-open vs. manual area selection (State A/B, §8). A user based in Hyderabad opening the app while traveling in Goa should get Goa results, not silently fall back to their last-selected Hyderabad area — that gap is real. Concretely: `users/{uid}.city` (§15, line 427) is already "home city" in substance; the clarification is to layer a live, session-only reverse-geocoded "current/destination city" on top (never persisted, per §11.3's no-background-tracking rule) rather than conflating the two. Schema clarification, not new infrastructure — noted against §15, not logged as a new decision.
+- **Discovery Radius Engine** — adaptive search radius by intent (Hungry Now 2–5km, Coffee Break 1–3km, Family Dinner 10–15km, Weekend Plan 30–50km, Worth Travelling unlimited) is a real upgrade over today's fixed radius-per-mode and composes cleanly with the already-locked "proximity is a tie-breaker, never an override" rule (§11.3). Cheap to add: radius becomes a lookup keyed off the same `mealTag`/intent chips already in `query_tags` (§13.1) — a constants table, not a new backend system. Recommend building alongside §11.1's Ranking Engine, already §21.5 priority 2, since both consume the same query context.
+- **Travel/Vacation Mode** (opening the app in a different city auto-shifts suggested categories) falls directly out of the Destination-City distinction above once it exists — it's what State A already does when session city ≠ home city, not a separate feature. Noted so it isn't mistaken for new scope later.
+
+## 36. Community & Gamification Additions (extends §11.6, §9.1)
+
+- **Food Lists / Curated Collections** ("Top 10 Biryani," "Best Cafes") — this doc has private/public saves implicitly (`saves/{uid}_{recId}`, §15) but no *named, shareable, multi-item* collection object. Genuine gap: a `collections/{id} { ownerUid, title, recIds[], public }` doc — effectively the Food Trail shape from §34 minus ordered-route semantics. If both ship, they should share one schema (ordered = trail, unordered = list) rather than becoming two near-identical collections — a build-time consolidation note, not two separate features.
+- **Food Passport** (gamified count of cities/areas/restaurants/dishes visited) is the one gamification idea worth checking against Principle #4 and this doc's existing anti-vanity-metric stance (§9.1, §14 point 7). It's different in kind from follower-count or raw-like mechanics — self-referential, competing against your own history rather than publicly against other users — closer to Duolingo-style intrinsic motivation than the Beli-style social pressure this doc already rejects. Low-risk, but still `[Phase 4]`: its only real data source, `checkins` (§10 "I'm Here"), is itself still `[Phase 2]`.
+- **Community Challenges** ("Hyderabad Biryani Week") — the source frames these as discovery-driven, not competitive, consistent with this doc's principles. Still needs an owner call: Editor-run challenges are operationally heavy (curation + judging) for a team this doc's own numbers put at 1–2 people during MVP. Logged as **D17**.
+
+## 37. Admin Role Hierarchy & CMS Depth (extends D14, Editor Console)
+
+- The source proposes seven admin roles (Support Executive → Content Moderator → Verification Manager → Business Manager → Operations Manager → Product Admin → Super Admin). This doc has two in substance today: Editor (§7) and an undocumented implicit Owner/full-access role. Recommend **against** building seven permission tiers now — consistent with D14's own "build a minimal skeleton" call, a 1–2 person team needs one moderation queue and one login gate, not a permission matrix sized for a support org. Reserve the *shape* only — a `role` string field on the admin user doc, not hardcoded to `"editor"` — so roles can be added later without a schema migration. Logged as **D18**.
+- **CMS for homepage sections** (toggle Trending/Hidden Gems/Community Places, publish Editor's Picks, festival campaigns, no deploy required) is genuinely useful once all of §24.1's Home sections exist and an Editor wants to curate without code changes. `editorsPicks/{pickId}` (§15) already covers the Editor's Picks piece; a generic per-section visibility toggle is new scope, but it's only worth building *after* §24.1's sections all exist — natural continuation of §30's plan, not an earlier insertion point.
+- **Feature flags / Remote Config** (city rollout, A/B tests, beta gating) are directly useful for §17 Phase 3's single-district launch and any later second-city expansion, and Firebase Remote Config costs nothing extra given this is already an all-Firebase project. Recommend: gate the Phase 3 launch city behind a Remote Config flag (`launchCity`) instead of a hardcoded value, so a second city later doesn't need a code deploy. Cheap enough to fold into Phase 3 as-is, not logged as a separate decision.
+
+## 38. Backend Architecture Pattern (informational — not a build item)
+
+The source proposes an event-bus pattern (`RecommendationCreated` fanning out in parallel to Trust/Search/Analytics/Notification services) and a `functions/src/{domain}/` folder-per-service convention. This is consistent with, not additive to, what this doc already implies: §11.1's Cloud-Function-recomputed `rankingScore` on every vote event, §15's "Cloud Function-maintained" aggregates throughout the schema, and §19's "client never calculates trust/ranking" rule are already an event-driven design in substance, just not named as one. Worth adopting the explicit folder convention (`functions/src/{trust,recommendations,restaurants,search,notifications}/`) as housekeeping once the Cloud Functions codebase outgrows its current size — a code-organization note, not a schema or feature change.
+
+**Stack note:** the source's own tech-stack chapter assumes Next.js App Router; this doc's stack is locked as React + Vite, Vercel-hosted, not Firebase Hosting (§16) — an already-live, deployed decision, unchanged by this cross-check. This isn't a new conflict — D9 (§20) already names "Next.js migration" as one of its two SSR options. The source restates one branch of an already-logged open decision; it doesn't add a new one. See D9.
+
+## 39. New Open Decisions From This Pass
+
+| # | Decision | Options | Default if unresolved |
+|---|---|---|---|
+| D16 | Business subscription tiers (Free/Pro/Enterprise, §33) — a monetization surface not in §17 Phase 4's existing sequence | Add as a distinct fifth Phase 4 stream / fold into "B2B insights," already in the sequence | Fold into existing "B2B insights" — don't let Phase 4 grow longer than it needs to be before Phase 2/3 even ship |
+| D17 | Editor-run Community Challenges (§36) — operationally heavy for current team size | Build once team > 2 people / never build, let §11.4's organic Trending leaderboard serve the same purpose | Don't build — §11.4 already surfaces momentum without a curated campaign layer |
+| D18 | Admin role granularity (§37) — 7-tier hierarchy proposed vs. today's 2-role model | Reserve a flexible `role` field now, stay single-role until needed / build granular roles now | Reserve field shape only, stay flat — matches D14's own "minimal skeleton" call |
+
+## 40. What Was Not Merged
+
+The source's chapters on the Trust Engine, Recommendation Engine, Verification, ownership boundaries (business-facts vs. community-opinions), ranking philosophy, "every ranking must be explainable," and Firestore schema/security philosophy all restate — in less numerically specific, non-implementable form — what §9–§15 and §19 already lock with real formulas, real field names, and real code-audit status against the live app. None of that was re-merged. Where the source's phrasing was sharper than this doc's own (e.g. "trust grows slowly, trust falls quickly" as a plain-language restatement of §9.3's velocity-check mechanism), it's noted here as confirmation, not treated as new content. Chapter 22 of the source ("Search, Discovery & Ranking Algorithms") was announced but never written — nothing to cross-check there; worth re-running this pass against it if the owner later supplies the finished chapter.
+
+---
+
+*End of Master Build Document v1.5. Every line above is subject to owner revision. Claude Code: confirm §21.5 build order AND this Part's Home/Restaurant/Dish IA with the owner before further UI work, per instruction #3 (top of this doc).*
