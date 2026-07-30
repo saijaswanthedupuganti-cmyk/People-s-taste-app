@@ -1,6 +1,7 @@
 import type { Store } from "../store.js";
 import { haversineMeters } from "../geo.js";
 import { computeTrust, updateTierHistory } from "../trust.js";
+import { computeRankingScore } from "../ranking.js";
 
 const GPS_VERIFICATION_RADIUS_METERS = 100;
 const COMMUNITY_PLACE_DEDUPE_RADIUS_METERS = 150;
@@ -188,6 +189,13 @@ export async function createRecommendationHandler(
     verificationLevel,
     verificationMultiplier: VERIFICATION_MULTIPLIER[verificationLevel],
     trustSnapshot,
+    rankingScore: computeRankingScore({
+      weightedHelpful: 0,
+      trustSnapshot,
+      verificationMultiplier: VERIFICATION_MULTIPLIER[verificationLevel],
+      createdAt: now,
+      now,
+    }),
     geoMismatch,
     geoAtPost: input.userLocation ?? null,
     proofUrl,

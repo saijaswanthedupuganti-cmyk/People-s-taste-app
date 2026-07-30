@@ -64,6 +64,7 @@ export function createTestStore() {
         verificationMultiplier: input.verificationMultiplier,
         trustSnapshot: input.trustSnapshot,
         weightedHelpful: 0,
+        rankingScore: input.rankingScore,
         helpfulVoteCount: 0,
         status: "live",
         geoMismatch: input.geoMismatch,

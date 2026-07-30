@@ -456,4 +456,26 @@ describe("createRecommendationHandler", () => {
     const rec = await store.getRecommendation(result.recommendationId);
     expect(rec?.trustSnapshot).toBe(10);
   });
+
+  it("sets rankingScore to 0 on creation (weightedHelpful starts at 0, per §11.1)", async () => {
+    const { store, users } = createTestStore();
+    users.set("author1", {
+      id: "author1", username: "a", displayName: "A", photoURL: "", tier: "explorer",
+      trustScore: 40, recCount: 0, verifiedRecCount: 0, weightedHelpfulReceived: 0,
+      homeArea: null, tierHistory: [], voteWeightPenaltyUntil: null, createdAt: FIXED_NOW,
+    });
+    const result = await createRecommendationHandler(
+      {
+        authorId: "author1",
+        restaurantId: undefined,
+        communityPlace: { name: "Test Cafe", location: { lat: 17.4, lng: 78.4 }, area: "Test", city: "Hyderabad" },
+        dishName: "Chai", mealTags: [], signalTags: [], primarySignal: "recommend",
+        caption: "Really good, worth it.",
+      },
+      store,
+      FIXED_NOW,
+    );
+    const rec = await store.getRecommendation(result.recommendationId);
+    expect(rec!.rankingScore).toBe(0);
+  });
 });

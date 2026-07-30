@@ -35,6 +35,8 @@ export interface RecommendationRecord {
   verificationMultiplier: number;
   trustSnapshot: number;
   weightedHelpful: number;
+  /** §11.1 ranking score, recomputed on create and on every helpful-vote event. */
+  rankingScore: number;
   helpfulVoteCount: number;
   status: RecommendationStatus;
   /** §10/§14 — GPS claimed at post time was implausibly far from the restaurant (different
@@ -59,6 +61,7 @@ export interface NewRecommendationInput {
   verificationLevel: 1 | 2;
   verificationMultiplier: number;
   trustSnapshot: number;
+  rankingScore: number;
   geoMismatch: boolean;
   geoAtPost: { lat: number; lng: number } | null;
   proofUrl: string | null;
