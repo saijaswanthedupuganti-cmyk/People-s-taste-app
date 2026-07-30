@@ -41,7 +41,9 @@ export interface RecommendationRecord {
   status: RecommendationStatus;
   /** §10/§14 — GPS claimed at post time was implausibly far from the restaurant (different
    * city/country) or implausibly fast since the author's last geo-tagged post (impossible
-   * travel). Never blocks the post; only suppresses its ranking weight (§21.1). */
+   * travel). Never blocks the post. **Not yet wired into ranking** — `computeRankingScore`
+   * (§11.1, ranking.ts) doesn't currently take this into account, so a geo-mismatched post
+   * ranks identically to a clean one. Logged as an open gap, not implemented in this pass. */
   geoMismatch: boolean;
   /** §15 `geoAtPost` — private, never exposed publicly. Powers the impossible-travel check. */
   geoAtPost: { lat: number; lng: number } | null;
