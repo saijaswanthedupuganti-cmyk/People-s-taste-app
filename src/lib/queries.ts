@@ -112,6 +112,7 @@ export async function fetchFeed(limitCount = 50): Promise<Recommendation[]> {
       collection(db, "recommendations"),
       where("status", "==", "live"),
       orderBy("rankingScore", "desc"),
+      orderBy("createdAt", "desc"),
       limit(limitCount),
     ),
   );
